@@ -5,8 +5,8 @@
 #ifndef VM_LOOKUP_CACHE_H_
 #define VM_LOOKUP_CACHE_H_
 
-#include "vm/globals.h"
-#include "vm/object.h"
+#include "globals.h"
+#include "object.h"
 
 namespace psoup {
 

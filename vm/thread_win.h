@@ -9,8 +9,8 @@
 #error Do not include thread_win.h directly; use thread.h instead.
 #endif
 
-#include "vm/assert.h"
-#include "vm/globals.h"
+#include "assert.h"
+#include "globals.h"
 
 namespace psoup {
 

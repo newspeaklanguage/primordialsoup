@@ -9,8 +9,8 @@
 #error Do not include message_loop_iocp.h directly; use message_loop.h instead.
 #endif
 
-#include "vm/message_loop.h"
-#include "vm/thread.h"
+#include "message_loop.h"
+#include "thread.h"
 
 namespace psoup {
 

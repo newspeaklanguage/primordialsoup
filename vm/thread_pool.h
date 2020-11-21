@@ -5,8 +5,8 @@
 #ifndef VM_THREAD_POOL_H_
 #define VM_THREAD_POOL_H_
 
-#include "vm/globals.h"
-#include "vm/thread.h"
+#include "globals.h"
+#include "thread.h"
 
 namespace psoup {
 

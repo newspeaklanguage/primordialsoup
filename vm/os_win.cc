@@ -2,17 +2,17 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-#include "vm/globals.h"
+#include "globals.h"
 #if defined(OS_WINDOWS)
 
-#include "vm/os.h"
+#include "os.h"
 
 #include <malloc.h>
 #include <process.h>
 #include <time.h>
 
-#include "vm/assert.h"
-#include "vm/thread.h"
+#include "assert.h"
+#include "thread.h"
 
 namespace psoup {
 

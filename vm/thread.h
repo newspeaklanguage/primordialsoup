@@ -5,22 +5,22 @@
 #ifndef VM_THREAD_H_
 #define VM_THREAD_H_
 
-#include "vm/allocation.h"
-#include "vm/globals.h"
+#include "allocation.h"
+#include "globals.h"
 
 // Declare the OS-specific types ahead of defining the generic classes.
 #if defined(OS_ANDROID)
-#include "vm/thread_android.h"
+#include "thread_android.h"
 #elif defined(OS_EMSCRIPTEN)
-#include "vm/thread_emscripten.h"
+#include "thread_emscripten.h"
 #elif defined(OS_FUCHSIA)
-#include "vm/thread_fuchsia.h"
+#include "thread_fuchsia.h"
 #elif defined(OS_LINUX)
-#include "vm/thread_linux.h"
+#include "thread_linux.h"
 #elif defined(OS_MACOS)
-#include "vm/thread_macos.h"
+#include "thread_macos.h"
 #elif defined(OS_WINDOWS)
-#include "vm/thread_win.h"
+#include "thread_win.h"
 #else
 #error Unknown OS.
 #endif

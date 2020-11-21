@@ -5,7 +5,7 @@
 #ifndef VM_MESSAGE_LOOP_H_
 #define VM_MESSAGE_LOOP_H_
 
-#include "vm/port.h"
+#include "port.h"
 
 namespace psoup {
 
@@ -92,17 +92,17 @@ class MessageLoop {
 }  // namespace psoup
 
 #if defined(OS_ANDROID)
-#include "vm/message_loop_epoll.h"
+#include "message_loop_epoll.h"
 #elif defined(OS_EMSCRIPTEN)
-#include "vm/message_loop_emscripten.h"
+#include "message_loop_emscripten.h"
 #elif defined(OS_FUCHSIA)
-#include "vm/message_loop_fuchsia.h"
+#include "message_loop_fuchsia.h"
 #elif defined(OS_LINUX)
-#include "vm/message_loop_epoll.h"
+#include "message_loop_epoll.h"
 #elif defined(OS_MACOS)
-#include "vm/message_loop_kqueue.h"
+#include "message_loop_kqueue.h"
 #elif defined(OS_WINDOWS)
-#include "vm/message_loop_iocp.h"
+#include "message_loop_iocp.h"
 #else
 #error Unknown OS.
 #endif

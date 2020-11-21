@@ -2,12 +2,12 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-#include "vm/object.h"
+#include "object.h"
 
-#include "vm/heap.h"
-#include "vm/interpreter.h"
-#include "vm/isolate.h"
-#include "vm/os.h"
+#include "heap.h"
+#include "interpreter.h"
+#include "isolate.h"
+#include "os.h"
 
 namespace psoup {
 

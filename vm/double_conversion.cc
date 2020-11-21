@@ -2,11 +2,11 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-#include "vm/double_conversion.h"
+#include "double_conversion.h"
 
-#include "vm/assert.h"
+#include "assert.h"
 
-#include "double-conversion/double-conversion.h"
+#include "../double-conversion/double-conversion.h"
 
 namespace psoup {
 

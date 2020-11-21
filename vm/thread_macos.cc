@@ -2,10 +2,10 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-#include "vm/globals.h"  // NOLINT
+#include "globals.h"  // NOLINT
 #if defined(OS_MACOS)
 
-#include "vm/thread.h"
+#include "thread.h"
 
 #include <sys/errno.h>         // NOLINT
 #include <sys/types.h>         // NOLINT
@@ -18,9 +18,9 @@
 #include <mach/thread_info.h>  // NOLINT
 #include <mach/thread_act.h>   // NOLINT
 
-#include "vm/assert.h"
-#include "vm/os.h"
-#include "vm/utils.h"
+#include "assert.h"
+#include "os.h"
+#include "utils.h"
 
 namespace psoup {
 

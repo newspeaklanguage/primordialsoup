@@ -2,10 +2,10 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-#include "vm/globals.h"  // NOLINT
+#include "globals.h"  // NOLINT
 #if defined(OS_MACOS)
 
-#include "vm/message_loop.h"
+#include "message_loop.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -15,8 +15,8 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-#include "vm/lockers.h"
-#include "vm/os.h"
+#include "lockers.h"
+#include "os.h"
 
 namespace psoup {
 

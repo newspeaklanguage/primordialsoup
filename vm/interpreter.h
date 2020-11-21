@@ -7,11 +7,11 @@
 
 #include <setjmp.h>
 
-#include "vm/globals.h"
-#include "vm/assert.h"
-#include "vm/flags.h"
-#include "vm/lookup_cache.h"
-#include "vm/object.h"
+#include "globals.h"
+#include "assert.h"
+#include "flags.h"
+#include "lookup_cache.h"
+#include "object.h"
 
 namespace psoup {
 

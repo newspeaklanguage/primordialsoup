@@ -5,8 +5,6 @@
 #ifndef VM_ASSERT_H_
 #define VM_ASSERT_H_
 
-#include "vm/globals.h"
-
 #if !defined(DEBUG) && !defined(NDEBUG)
 #error neither DEBUG nor NDEBUG defined
 #elif defined(DEBUG) && defined(NDEBUG)
@@ -19,7 +17,8 @@ class Assert {
  public:
   Assert(const char* file, int line) : file_(file), line_(line) {}
 
-  NORETURN void Fail(const char* format, ...) PRINTF_ATTRIBUTE(2, 3);
+    //NORETURN void Fail(const char* format, ...) PRINTF_ATTRIBUTE(2, 3);
+    void Fail(const char* format, ...);
 
  private:
   const char* file_;

@@ -10,7 +10,7 @@
   instead.
 #endif
 
-#include "vm/message_loop.h"
+#include "message_loop.h"
 
 namespace psoup {
 

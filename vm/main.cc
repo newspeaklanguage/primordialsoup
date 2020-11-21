@@ -2,14 +2,14 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-#include "vm/globals.h"
+#include "globals.h"
 #if !defined(OS_EMSCRIPTEN)
 
 #include <signal.h>
 
-#include "vm/os.h"
-#include "vm/primordial_soup.h"
-#include "vm/virtual_memory.h"
+#include "os.h"
+#include "primordial_soup.h"
+#include "virtual_memory.h"
 
 static void SIGINT_handler(int sig) {
   PrimordialSoup_InterruptAll();

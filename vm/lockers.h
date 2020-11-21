@@ -5,10 +5,10 @@
 #ifndef VM_LOCKERS_H_
 #define VM_LOCKERS_H_
 
-#include "vm/assert.h"
-#include "vm/allocation.h"
-#include "vm/globals.h"
-#include "vm/thread.h"
+#include "assert.h"
+#include "allocation.h"
+#include "globals.h"
+#include "thread.h"
 
 namespace psoup {
 

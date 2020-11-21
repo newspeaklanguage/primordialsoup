@@ -2,10 +2,10 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-#include "vm/globals.h"
+#include "globals.h"
 #if defined(OS_ANDROID)
 
-#include "vm/os.h"
+#include "os.h"
 
 #include <android/log.h>  // NOLINT
 #include <errno.h>  // NOLINT
@@ -14,7 +14,7 @@
 #include <sys/types.h>  // NOLINT
 #include <unistd.h>  // NOLINT
 
-#include "vm/assert.h"
+#include "assert.h"
 
 namespace psoup {
 

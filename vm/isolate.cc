@@ -2,16 +2,16 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-#include "vm/isolate.h"
+#include "isolate.h"
 
-#include "vm/heap.h"
-#include "vm/interpreter.h"
-#include "vm/lockers.h"
-#include "vm/message_loop.h"
-#include "vm/os.h"
-#include "vm/snapshot.h"
-#include "vm/thread.h"
-#include "vm/thread_pool.h"
+#include "heap.h"
+#include "interpreter.h"
+#include "lockers.h"
+#include "message_loop.h"
+#include "os.h"
+#include "snapshot.h"
+#include "thread.h"
+#include "thread_pool.h"
 
 namespace psoup {
 

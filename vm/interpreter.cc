@@ -2,13 +2,14 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-#include "vm/interpreter.h"
+#include "interpreter.h"
 
-#include "vm/heap.h"
-#include "vm/isolate.h"
-#include "vm/math.h"
-#include "vm/os.h"
-#include "vm/primitives.h"
+#include "heap.h"
+#include "isolate.h"
+#include "math-vm.h"
+#include "os.h"
+#include "primitives.h"
+
 
 #define H heap_
 #define nil nil_

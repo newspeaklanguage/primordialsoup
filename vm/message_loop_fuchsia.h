@@ -14,7 +14,7 @@
 #include <lib/async/cpp/wait.h>
 #include <lib/zx/timer.h>
 
-#include "vm/port.h"
+#include "port.h"
 
 namespace psoup {
 

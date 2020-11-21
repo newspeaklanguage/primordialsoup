@@ -5,8 +5,8 @@
 #ifndef VM_UTILS_H_
 #define VM_UTILS_H_
 
-#include "vm/globals.h"
-#include "vm/assert.h"
+#include "globals.h"
+#include "assert.h"
 
 namespace psoup {
 
@@ -65,17 +65,17 @@ class Utils {
 }  // namespace psoup
 
 #if defined(OS_ANDROID)
-#include "vm/utils_android.h"
+#include "utils_android.h"
 #elif defined(OS_EMSCRIPTEN)
-#include "vm/utils_emscripten.h"
+#include "utils_emscripten.h"
 #elif defined(OS_FUCHSIA)
-#include "vm/utils_fuchsia.h"
+#include "utils_fuchsia.h"
 #elif defined(OS_LINUX)
-#include "vm/utils_linux.h"
+#include "utils_linux.h"
 #elif defined(OS_MACOS)
-#include "vm/utils_macos.h"
+#include "utils_macos.h"
 #elif defined(OS_WINDOWS)
-#include "vm/utils_win.h"
+#include "utils_win.h"
 #else
 #error Unknown OS.
 #endif

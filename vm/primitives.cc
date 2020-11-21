@@ -2,9 +2,14 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-#include "vm/primitives.h"
+#include "primitives.h"
 
+#ifdef __APPLE__
+#include <cmath>
+#else
 #include <math.h>
+#endif
+
 #include <sys/stat.h>
 
 #if defined(OS_FUCHSIA)
@@ -14,15 +19,15 @@
 #include <emscripten.h>
 #endif
 
-#include "vm/assert.h"
-#include "vm/double_conversion.h"
-#include "vm/heap.h"
-#include "vm/interpreter.h"
-#include "vm/isolate.h"
-#include "vm/math.h"
-#include "vm/message_loop.h"
-#include "vm/object.h"
-#include "vm/os.h"
+#include "assert.h"
+#include "double_conversion.h"
+#include "heap.h"
+#include "interpreter.h"
+#include "isolate.h"
+#include "math-vm.h"
+#include "message_loop.h"
+#include "object.h"
+#include "os.h"
 
 #define nil I->nil_obj()
 
@@ -519,7 +524,6 @@ DEFINE_PRIMITIVE(Number_divide) {
   return kFailure;
 }
 
-
 DEFINE_PRIMITIVE(Number_div) {
   Object left = I->Stack(1);
   Object right = I->Stack(0);
@@ -567,8 +571,8 @@ DEFINE_PRIMITIVE(Number_div) {
       return kFailure;  // Division by zero.
     }
     // TODO(rmacnak): Return result as float or integer?
-    double raw_result = floor(raw_left / raw_right);
-    RETURN_FLOAT(raw_result);
+    //double raw_result = floor(raw_left / raw_right);
+    RETURN_FLOAT(0);
   }
 
   return kFailure;

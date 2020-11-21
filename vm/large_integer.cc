@@ -4,11 +4,15 @@
 
 // Henry S. Warren, Jr. "Hacker's Delight." (2nd Edition) Addison-Wesley. 2012.
 
+#ifdef __APPLE__
+#include <cmath>
+#else
 #include <math.h>
+#endif
 
-#include "vm/assert.h"
-#include "vm/heap.h"
-#include "vm/object.h"
+#include "assert.h"
+#include "heap.h"
+#include "object.h"
 
 namespace psoup {
 
@@ -1524,7 +1528,6 @@ static LargeInteger NewFromShiftedInt64(int64_t value,
   Verify(result);
   return result;
 }
-
 
 bool LargeInteger::FromDouble(double raw_value, Object* result, Heap* H) {
   if (isinf(raw_value) || isnan(raw_value)) {

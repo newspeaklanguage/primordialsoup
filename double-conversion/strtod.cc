@@ -270,6 +270,7 @@ static DiyFp AdjustmentPowerOfTen(int exponent) {
     default:
       UNREACHABLE();
   }
+    return DiyFp();
 }
 
 

@@ -5,8 +5,9 @@
 #ifndef VM_MATH_H_
 #define VM_MATH_H_
 
-#include "vm/globals.h"
-#include "vm/assert.h"
+#include "globals.h"
+#include "assert.h"
+#include "flags.h"
 
 namespace psoup {
 
@@ -213,7 +214,7 @@ class Math {
     return static_cast<int64_t>(static_cast<uint64_t>(left) << right);
   }
 
-  NO_SANITIZE_UNDEFINED("float-divide-by-zero")
+  //NO_SANITIZE_UNDEFINED("float-divide-by-zero")
   static inline double DivideF64(double dividend, double divisor) {
     return dividend / divisor;
   }

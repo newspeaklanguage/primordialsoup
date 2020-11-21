@@ -5,10 +5,10 @@
 #ifndef VM_OBJECT_H_
 #define VM_OBJECT_H_
 
-#include "vm/assert.h"
-#include "vm/globals.h"
-#include "vm/bitfield.h"
-#include "vm/utils.h"
+#include "assert.h"
+#include "globals.h"
+#include "bitfield.h"
+#include "utils.h"
 
 namespace psoup {
 

@@ -5,12 +5,12 @@
 #ifndef VM_HEAP_H_
 #define VM_HEAP_H_
 
-#include "vm/assert.h"
-#include "vm/flags.h"
-#include "vm/globals.h"
-#include "vm/object.h"
-#include "vm/utils.h"
-#include "vm/virtual_memory.h"
+#include "assert.h"
+#include "flags.h"
+#include "globals.h"
+#include "object.h"
+#include "utils.h"
+#include "virtual_memory.h"
 
 namespace psoup {
 

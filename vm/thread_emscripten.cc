@@ -2,13 +2,13 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-#include "vm/globals.h"  // NOLINT
+#include "globals.h"  // NOLINT
 #if defined(OS_EMSCRIPTEN)
 
-#include "vm/thread.h"
+#include "thread.h"
 
-#include "vm/assert.h"
-#include "vm/utils.h"
+#include "assert.h"
+#include "utils.h"
 
 namespace psoup {
 

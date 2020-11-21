@@ -5,7 +5,7 @@
 #ifndef VM_VIRTUAL_MEMORY_H_
 #define VM_VIRTUAL_MEMORY_H_
 
-#include "vm/globals.h"
+#include "globals.h"
 
 namespace psoup {
 

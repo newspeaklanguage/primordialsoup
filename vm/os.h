@@ -5,7 +5,7 @@
 #ifndef VM_OS_H_
 #define VM_OS_H_
 
-#include "vm/globals.h"
+#include "globals.h"
 
 namespace psoup {
 

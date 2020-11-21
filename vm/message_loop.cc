@@ -2,10 +2,10 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-#include "vm/message_loop.h"
+#include "message_loop.h"
 
-#include "vm/isolate.h"
-#include "vm/os.h"
+#include "isolate.h"
+#include "os.h"
 
 namespace psoup {
 

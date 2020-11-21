@@ -2,16 +2,16 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-#include "vm/globals.h"
+#include "globals.h"
 #if defined(OS_EMSCRIPTEN)
 
 #include <emscripten.h>
 
-#include "vm/isolate.h"
-#include "vm/message_loop.h"
-#include "vm/os.h"
-#include "vm/port.h"
-#include "vm/primordial_soup.h"
+#include "isolate.h"
+#include "message_loop.h"
+#include "os.h"
+#include "port.h"
+#include "primordial_soup.h"
 
 EM_JS(void, _JS_initializeAliens, (), {
   var aliens = new Array();

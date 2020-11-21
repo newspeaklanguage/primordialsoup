@@ -2,17 +2,17 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-#include "vm/primordial_soup.h"
+#include "primordial_soup.h"
 
-#include "vm/flags.h"
-#include "vm/globals.h"
-#include "vm/isolate.h"
-#include "vm/message_loop.h"
-#include "vm/os.h"
-#include "vm/port.h"
-#include "vm/primitives.h"
-#include "vm/snapshot.h"
-#include "vm/thread.h"
+#include "flags.h"
+#include "globals.h"
+#include "isolate.h"
+#include "message_loop.h"
+#include "os.h"
+#include "port.h"
+#include "primitives.h"
+#include "snapshot.h"
+#include "thread.h"
 
 PSOUP_EXTERN_C void PrimordialSoup_Startup() {
   psoup::OS::Startup();

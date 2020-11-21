@@ -5,7 +5,7 @@
 #ifndef VM_DOUBLE_CONVERSION_H_
 #define VM_DOUBLE_CONVERSION_H_
 
-#include "vm/globals.h"
+#include "globals.h"
 
 namespace psoup {
 

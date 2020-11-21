@@ -5,8 +5,8 @@
 #ifndef VM_PRIMITIVES_H_
 #define VM_PRIMITIVES_H_
 
-#include "vm/assert.h"
-#include "vm/globals.h"
+#include "assert.h"
+#include "globals.h"
 
 namespace psoup {
 

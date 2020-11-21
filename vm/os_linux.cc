@@ -2,10 +2,10 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-#include "vm/globals.h"
+#include "globals.h"
 #if defined(OS_LINUX)
 
-#include "vm/os.h"
+#include "os.h"
 
 #include <errno.h>
 #include <stdarg.h>
@@ -14,7 +14,7 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "vm/assert.h"
+#include "assert.h"
 
 namespace psoup {
 

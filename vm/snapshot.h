@@ -5,9 +5,9 @@
 #ifndef VM_SNAPSHOT_H_
 #define VM_SNAPSHOT_H_
 
-#include "vm/allocation.h"
-#include "vm/globals.h"
-#include "vm/object.h"
+#include "allocation.h"
+#include "globals.h"
+#include "object.h"
 
 namespace psoup {
 

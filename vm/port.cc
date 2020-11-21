@@ -2,15 +2,15 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-#include "vm/port.h"
+#include "port.h"
 
-#include "vm/flags.h"
-#include "vm/lockers.h"
-#include "vm/message_loop.h"
-#include "vm/os.h"
-#include "vm/random.h"
-#include "vm/thread.h"
-#include "vm/utils.h"
+#include "flags.h"
+#include "lockers.h"
+#include "message_loop.h"
+#include "os.h"
+#include "random.h"
+#include "thread.h"
+#include "utils.h"
 
 namespace psoup {
 

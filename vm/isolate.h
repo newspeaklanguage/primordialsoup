@@ -5,10 +5,10 @@
 #ifndef VM_ISOLATE_H_
 #define VM_ISOLATE_H_
 
-#include "vm/allocation.h"
-#include "vm/globals.h"
-#include "vm/port.h"
-#include "vm/random.h"
+#include "allocation.h"
+#include "globals.h"
+#include "port.h"
+#include "random.h"
 
 namespace psoup {
 

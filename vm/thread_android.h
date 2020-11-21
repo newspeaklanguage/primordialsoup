@@ -11,8 +11,8 @@
 
 #include <pthread.h>
 
-#include "vm/assert.h"
-#include "vm/globals.h"
+#include "assert.h"
+#include "globals.h"
 
 namespace psoup {
 
