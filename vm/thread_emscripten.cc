@@ -16,6 +16,7 @@ int Thread::Start(const char* name,
                   ThreadStartFunction function,
                   uword parameter) {
   UNREACHABLE();
+  return 0;
 }
 
 
