@@ -593,7 +593,7 @@ public mapperForContext: ctxt = (
 ) : (
 )
 class DebugMapper forContext: ctxt usingDebugInfo: dbgInfo = (|
-	context <MethodContext> = ctxt.
+	context <Activation> = ctxt.
 	debugInfo <DebugInfo> = dbgInfo.
 	myDepth <Integer> = self depthOfContext: ctxt.
 |) (
@@ -613,7 +613,7 @@ astForContextAtDepth: targetDepth <Integer> ^<AST> = (
 		returnContext:: (UnresolvedSendAST new
 			receiver: returnContext;
 			message: (MessageAST new
-				selector: #outerContext;
+				selector: #enclosingActivation;
 				arguments: {}))].
 
 	^returnContext
@@ -621,7 +621,7 @@ astForContextAtDepth: targetDepth <Integer> ^<AST> = (
 bci = (
 	^context bci
 )
-contextAtDepth: targetDepth <Integer> ^<MethodContext> = (
+contextAtDepth: targetDepth <Integer> ^<Activation> = (
 	|
 	returnContext
 	|
@@ -629,13 +629,13 @@ contextAtDepth: targetDepth <Integer> ^<MethodContext> = (
 
 	returnContext: context.
 	(myDepth - targetDepth)
-		timesRepeat: [returnContext: returnContext outerContext].
+		timesRepeat: [returnContext: returnContext enclosingActivation].
 	^returnContext
 )
-depthOfContext: ctxt <MethodContext> ^<Integer> = (
+depthOfContext: ctxt <Activation> ^<Integer> = (
 	^ctxt closure isNil
 		ifTrue: [0 (* method *)]
-		ifFalse: [1 + (depthOfContext: ctxt outerContext)]
+		ifFalse: [1 + (depthOfContext: ctxt enclosingActivation)]
 )
 public getValueOf: varName <Symbol> ^<Object> = (
 	| info ctxt vector |
@@ -1332,7 +1332,7 @@ addRemoteVectorForCodeBodyNode: node <CodeBodyAST> = (
 
 	0 = indirectionCount ifFalse:
 		[indirectionVectorAST:: rewriter TemporaryAST
-			name: #'@indirectionVector'
+			name: '@indirectionVector', closureDepth asString
 			type: nil.
 		 indirectionVectorEntry:: LocalEntry
 			forDeclaration: indirectionVectorAST
@@ -2038,7 +2038,7 @@ checkForDuplicateNames: node <ClassDeclarationAST> = (
 			do: [:each | s add: each asString]
 			separatedBy: [ s add: ','].
 		s add: '.'.
-		Error signal: s asString].
+		Exception signal: s asString].
 )
 private compileClass: node <ClassDeclarationAST> ^<IntermediateClassDeclaration> = (
 	| headerNode <ClassHeaderAST> classDecl <IntermediateClassDeclaration> |
@@ -2079,7 +2079,7 @@ public compileClassSource: src <String> within: enclosingIR <IntermediateMixin> 
 
 	^intermediate
 )
-public compileExpressionSource: src <String> debugMapper: debugMapper <MethodContext> withScope: withScope <Map> inMixin: enclosing <MixinMirror> ^<IntermediateMethod> = (
+public compileExpressionSource: src <String> debugMapper: debugMapper <DebugMapper> withScope: withScope <Map> inMixin: enclosing <MixinMirror> ^<IntermediateMethod> = (
 	(* Compile a DoIt method.  If aContext is not nil, compile a DoItIn:ctxt method where accesses to names in scope of the context are rewritten to access through the context.  Cog closures complicate this rewriting compared to BlockContexts, as access might be rather indirect.  Also, in cases where a temp is only a copied value and not in a remote indirection vector, it would be impractical to handle writes such that they actually track down all places where the temp lives and update them.  In these cases, we should merely find the most local copy, which I believe is what closure compiled Squeak does. *)
 	|
 	body <CodeBodyAST>
@@ -2106,7 +2106,7 @@ public compileExpressionSource: src <String> debugMapper: debugMapper <MethodCon
 	(* Put into a method *)
 	method:: MethodAST new
 		pattern: (MessagePatternAST new
-			selector: #DoItIn:With:
+			selector: #'[evaluate]'
 			parameters:
 				{VarDeclAST name: namer doitContextArgumentName type: nil.
 				 VarDeclAST name: namer scopeArgumentName type: nil});
@@ -2379,15 +2379,6 @@ hereNode ^<VariableAST> = (
 	(* Generates an AST representing the implicit receiver. Note we use a name that is not a legal identifier. *)
 	^VariableAST new name: #'@here'
 )
-hereSendFrom: arg <VarDeclAST> ^<MessageNode> = (
-	^UnresolvedSendAST new
-		to: hereNode
-		send: (MessageAST new
-			send: arg name
-			with: {};
-			start: arg start; end: arg end);
-		start: arg start; end: arg end
-)
 inheritanceASTWIthSuperclass: sc <ExpressionAST> iList: iList <List[SendAST]> ^ <NormalSendAST> = (
 (*
 Produce an AST representing a series of mixin applications corresponding
@@ -2649,7 +2640,7 @@ assert: condition message: message = (
 )
 check: value between: min and: max = (
 	value >= min ifTrue: [value <= max ifTrue: [^self]].
-	Error signal: 'Encoding out of range'.
+	Exception signal: 'Encoding out of range'.
 )
 namer = (
 	^super namer

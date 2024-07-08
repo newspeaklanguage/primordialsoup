@@ -44,6 +44,11 @@ public closure: value = (
 	(* :pragma: primitive: 173 *)
 	panic.
 )
+public enclosingActivation ^<Activation> = (
+	| c = closure. |
+	nil = c ifTrue: [^nil].
+	^definingActivationOf: c
+)
 (* Return the next unwind marked above the receiver, returning nil if there is none.  Search proceeds up to but not including aContext. *)
 public findNextUnwindContextUpTo: activation = (
 	| ctx |
@@ -91,12 +96,6 @@ public method: value = (
 private nonBooleanReceiver: nonBoolean = (
 	^(NonBooleanReceiver receiver: nonBoolean) signal
 )
-(* Squeak compatibility for DebugMapper. *)
-public outerContext ^<Activation> = (
-	| c = closure. |
-	nil = c ifTrue: [^nil].
-	^definingActivationOf: c
-)
 public pop = (
 	|
 	depth = self size.
@@ -134,9 +133,28 @@ public receiver: value = (
 	(* :pragma: primitive: 175 *)
 	panic.
 )
+public restart = (
+	| unwindActivation unwindBlock |
+	self method primitive = 161 ifFalse: [panic].
+	self isDead ifTrue: [^self cannotReturn: nil].
+	self bci: 1.
+	self size: 3.
+	self tempAt: 3 put: false.
+	unwindActivation:: currentActivation.
+	[unwindActivation:: unwindActivation findNextUnwindContextUpTo: self.
+	nil = unwindActivation]
+		whileFalse:
+			[nil = (unwindActivation tempAt: 2) ifTrue: [
+				unwindActivation tempAt: 2 put: true.
+				unwindBlock:: unwindActivation tempAt: 1.
+				currentActivation terminateTo: unwindActivation.
+				unwindBlock value]].
+	currentActivation terminateTo: self.
+	^self pop
+)
 public resume: value = (
 	| unwindActivation unwindBlock |
-	self isDead ifTrue: [self cannotReturn: value to: self].
+	self isDead ifTrue: [^self cannotReturn: value].
 	unwindActivation:: currentActivation.
 	[unwindActivation:: unwindActivation findNextUnwindContextUpTo: self.
 	nil = unwindActivation]
@@ -560,7 +578,7 @@ public withAll: bytes <Collection[Integer] | ByteArray | String> ^<ByteArray> = 
 )
 )
 (* Signalled when attempting to return to (or through) a nil sender or a sender that has already returned. *)
-class CannotReturn result: r = Exception (
+public class CannotReturn result: r = Exception (
 |
 public result = r.
 |) (
@@ -900,7 +918,6 @@ public resume: resumptionValue = (
 	^savedSignalActivation return: resumptionValue
 )
 public retry = (
-	panic. (* Needs test *)
 	handlerActivation restart.
 	panic.
 )
@@ -1264,6 +1281,31 @@ public numerator: numerator <Integer> denominator: denominator <Integer> ^<Fract
 	1 = denom ifTrue: [^numer].
 	^Fraction reducedNumerator: numer denominator: denom
 )
+)
+public class Future computing: block <[E]> = Proxy (
+	|
+	private blockOrValue ::= block.
+	private state ::= #unresolved.
+	|
+) (
+protected doesNotUnderstand: message = (
+	^message sendTo: self resolve
+)
+public isKindOfFuture ^<Boolean> = (
+	^true
+)
+private resolve = (
+	state = #resolving ifTrue:
+		[Error signal: 'Divergent evaluation of ', blockOrValue printString].
+	state = #unresolved ifTrue:
+		[state: #resolving.
+		 blockOrValue: blockOrValue value.
+		 [blockOrValue isKindOfFuture] whileTrue:
+			[blockOrValue: blockOrValue resolve].
+		 state: #resolved].
+	^blockOrValue
+)
+) : (
 )
 (* A map whose keys are considered equal according to object identity. *)
 public class IdentityMap new: capacity = (
@@ -2044,7 +2086,9 @@ public tan ^<Float> = (
 public to: stop <Number> by: step <Number> do: action <[:Number]> = (
 	(* Usually this message is implemented inline by the bytecode compiler, and therefore not subject to lookup. This implementation handles non-inlined cases, such as eventual sends or non-literal arguments. *)
 	| current ::= self. |
-	[current <= stop] whileTrue: [action value: current. current:: step + current].
+	step < 0
+		ifTrue: [[current >= stop] whileTrue: [action value: current. current:: step + current]]
+		ifFalse: [[current <= stop] whileTrue: [action value: current. current:: step + current]].
 
 	^nil (* To match the inlined version *)
 )
@@ -2091,6 +2135,9 @@ protected Exception = (
 )
 protected Float = (
 	^outer KernelForPrimordialSoup Float
+)
+protected Future = (
+	^outer KernelForPrimordialSoup Future
 )
 protected Integer = (
 	^outer KernelForPrimordialSoup Integer

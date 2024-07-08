@@ -45,6 +45,7 @@ assertSlotsOf: activation haveNamesAndValues: pairs = (
 )
 assertThread: thread atMethod: expectedMethod snippet: expectedSnippet = (
 	| activation |
+	assert: thread isSuspended | thread isBroken.
 	activation:: thread suspendedActivation.
 	assert: activation method name equals: expectedMethod.
 	assert: (currentSnippet: activation) equals: expectedSnippet.
@@ -107,6 +108,26 @@ liveHomeWithLocals: a = (
 	c:: 3. (* Copied *)
 	d:: 4. (* Indirect *)
 	^[d:: d + c] value
+)
+localsNested = (
+	| notCopied copied indirect indirectOnlyOneLevel |
+	notCopied:: 1.
+	copied:: 2.
+	indirect:: 4.
+	indirectOnlyOneLevel:: 8.
+	[
+		| notCopied2 copied2 indirect2 |
+		notCopied2:: 16.
+		copied2:: 32.
+		indirect2:: 64.
+		[
+			stopHere.
+			copied + copied2 + indirect + indirect2
+		] value.
+		indirect2:: 128.
+		indirectOnlyOneLevel: 256.
+	] value.
+	indirect:: 512.
 )
 nlr1 = (
 	^nlr2
@@ -220,6 +241,26 @@ public testActivationEvaluateEnclosingLocals = (
 	assert: activation receiver equals: (ObjectMirror reflecting: self).
 	assert: activation closure equals: (ObjectMirror reflecting: closure).
 	assert: activation method name equals: #testActivationEvaluateEnclosingLocals.
+
+	eval:: activation evaluate: 'x'.
+	assert: eval isFulfilled.
+	assert: eval result reflectee equals: 3.
+
+	eval:: activation evaluate: 'x: 4'.
+	assert: eval isFulfilled.
+	assert: eval result reflectee equals: 4.
+	assert: x equals: 4.
+)
+public testActivationEvaluateEnclosingLocals2 = (
+	| x closure thread activation eval |
+	x:: 0. (* Captured, but only in an enclosing closure *)
+	closure:: [x:: 3. [nil]] value.
+	thread:: ActivationMirror invokeSuspended: closure.
+
+	activation:: thread suspendedActivation.
+	assert: activation receiver equals: (ObjectMirror reflecting: self).
+	assert: activation closure equals: (ObjectMirror reflecting: closure).
+	assert: activation method name equals: #testActivationEvaluateEnclosingLocals2.
 
 	eval:: activation evaluate: 'x'.
 	assert: eval isFulfilled.
@@ -437,6 +478,25 @@ public testActivationLocalsLiveHome = (
 	thread stepInto. (* Return top *)
 
 	assert: thread isFulfilled.
+)
+public testActivationLocalsNested = (
+	| thread |
+	thread:: ActivationMirror invokeSuspended: [localsNested].
+	assert: thread isSuspended.
+
+	[(currentSnippet: thread suspendedActivation) = #stopHere]
+		whileFalse: [thread stepInto].
+
+	assertSlotsOf: thread suspendedActivation haveNamesAndValues:
+		{#notCopied. 1.
+		 #copied. 2.
+		 #indirect. 4.
+		 #indirectOnlyOneLevel. 8.
+		(* :todo: Don't include each level of a copied local. Tricky because we'd like to display them in scope order when possible, but outer contexts might be dead. Also we do want to display shadowed locals since they in general have different values. *)
+		 #copied. 2.
+		 #notCopied2. 16.
+		 #copied2. 32.
+		 #indirect2. 64}.
 )
 public testActivationNestedClassAccessor = (
 	| thread activation |
@@ -1171,7 +1231,7 @@ public testEvaluateActivation = (
 	activation:: thread suspendedActivation.
 	assert: activation closure equals: nil.
 	assert: activation receiver equals: (ObjectMirror reflecting: self).
-	assert: activation method name equals: #DoItIn:With:.
+	assert: activation method name equals: '[evaluate]'.
 	assert: activation method source equals: '3 + 4'.
 	assert: activation sender equals: nil.
 	assert: activation enclosingActivation equals: nil.
@@ -1189,7 +1249,7 @@ public testEvaluateActivationLocals = (
 	activation:: thread suspendedActivation.
 	assert: activation closure equals: nil.
 	assert: activation receiver equals: (ObjectMirror reflecting: self).
-	assert: activation method name equals: #DoItIn:With:.
+	assert: activation method name equals: '[evaluate]'.
 	assert: activation method source equals: ' | seven | seven:: 3 + 4 '.
 	assert: activation sender equals: nil.
 	locals:: activation slots.

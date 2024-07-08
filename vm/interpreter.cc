@@ -141,7 +141,7 @@ Interpreter::Interpreter(Heap* heap, Isolate* isolate)
   stack_base_ = stack_limit_ + kStackSlots;
   sp_ = stack_base_;
   checked_stack_limit_ =
-      stack_limit_ + (sizeof(Activation::Layout) / sizeof(Object));
+      reinterpret_cast<uword>(stack_limit_) + sizeof(Activation::Layout);
 
 #if defined(DEBUG)
   for (intptr_t i = 0; i < kStackSlots; i++) {
@@ -577,16 +577,6 @@ void Interpreter::DNUSend(String selector,
                           Object receiver,
                           Behavior lookup_class,
                           bool present_receiver) {
-  if (TRACE_DNU) {
-    char* c1 = receiver->ToCString(H);
-    char* c2 = selector->ToCString(H);
-    char* c3 = FrameMethod(fp_)->selector()->ToCString(H);
-    OS::PrintErr("DNU %s %s from %s\n", c1, c2, c3);
-    free(c1);
-    free(c2);
-    free(c3);
-  }
-
   Behavior cls = lookup_class;
   Method method;
   do {
@@ -603,9 +593,9 @@ void Interpreter::DNUSend(String selector,
 
   Array arguments;
   {
-    HandleScope h1(H, reinterpret_cast<Object*>(&selector));
+    HandleScope h1(H, &selector);
     HandleScope h2(H, &receiver);
-    HandleScope h3(H, reinterpret_cast<Object*>(&method));
+    HandleScope h3(H, &method);
     arguments = H->AllocateArray(num_args);  // SAFEPOINT
   }
   for (intptr_t i = 0; i < num_args; i++) {
@@ -614,10 +604,10 @@ void Interpreter::DNUSend(String selector,
   }
   Message message;
   {
-    HandleScope h1(H, reinterpret_cast<Object*>(&selector));
+    HandleScope h1(H, &selector);
     HandleScope h2(H, &receiver);
-    HandleScope h3(H, reinterpret_cast<Object*>(&method));
-    HandleScope h4(H, reinterpret_cast<Object*>(&arguments));
+    HandleScope h3(H, &method);
+    HandleScope h4(H, &arguments);
     message = H->AllocateMessage();  // SAFEPOINT
   }
 
@@ -633,10 +623,6 @@ void Interpreter::DNUSend(String selector,
 }
 
 void Interpreter::SendCannotReturn(Object result) {
-  if (TRACE_SPECIAL_CONTROL) {
-    OS::PrintErr("#cannotReturn:\n");
-  }
-
   Activation top;
   {
     HandleScope h1(H, &result);
@@ -664,14 +650,10 @@ void Interpreter::SendCannotReturn(Object result) {
 }
 
 void Interpreter::SendAboutToReturnThrough(Object result, Activation unwind) {
-  if (TRACE_SPECIAL_CONTROL) {
-    OS::PrintErr("#aboutToReturn:through:\n");
-  }
-
   Activation top;
   {
     HandleScope h1(H, &result);
-    HandleScope h2(H, reinterpret_cast<Object*>(&unwind));
+    HandleScope h2(H, &unwind);
     top = EnsureActivation(fp_);  // SAFEPOINT
   }
 
@@ -698,9 +680,6 @@ void Interpreter::SendAboutToReturnThrough(Object result, Activation unwind) {
 
 void Interpreter::SendNonBooleanReceiver(Object non_boolean) {
   // Note that Squeak instead sends #mustBeBoolean to the non-boolean.
-  if (TRACE_SPECIAL_CONTROL) {
-    OS::PrintErr("#nonBooleanReceiver:\n");
-  }
 
   Activation top;
   {
@@ -781,9 +760,6 @@ void Interpreter::Activate(Method method, intptr_t num_args) {
 
   intptr_t prim = method->Primitive();
   if (prim != 0) {
-    if (TRACE_PRIMITIVES) {
-      OS::PrintErr("Primitive %" Pd "\n", prim);
-    }
     if ((prim & 512) != 0) {
       // Getter
       intptr_t offset = prim & 511;
@@ -804,7 +780,7 @@ void Interpreter::Activate(Method method, intptr_t num_args) {
       PopNAndPush(2, receiver);
       return;
     } else {
-      HandleScope h1(H, reinterpret_cast<Object*>(&method));
+      HandleScope h1(H, &method);
       if (Primitives::Invoke(prim, num_args, H, this)) {  // SAFEPOINT
         ASSERT(StackDepth() >= 0);
         return;
@@ -828,9 +804,7 @@ void Interpreter::Activate(Method method, intptr_t num_args) {
     Push(nil);
   }
 
-  if (sp_ < checked_stack_limit_) {
-    StackOverflow();
-  }
+  StackOverflowOrInterruptCheck();  // SAFEPOINT
 }
 
 void Interpreter::ActivateClosure(intptr_t num_args) {
@@ -858,9 +832,7 @@ void Interpreter::ActivateClosure(intptr_t num_args) {
 
   // Temps allocated by bytecodes
 
-  if (sp_ < checked_stack_limit_) {
-    StackOverflow();
-  }
+  StackOverflowOrInterruptCheck();  // SAFEPOINT
 }
 
 void Interpreter::CreateBaseFrame(Activation activation) {
@@ -917,16 +889,26 @@ void Interpreter::CreateBaseFrame(Activation activation) {
   ASSERT(FrameReceiver(fp_) == activation->receiver());
 }
 
-void Interpreter::StackOverflow() {
-  if (checked_stack_limit_ == reinterpret_cast<Object*>(-1)) {
-    // Interrupt.
-    isolate_->PrintStack();
+void Interpreter::StackOverflowOrInterrupt() {
+  // Atomically fetch and clear any interrupts.
+  uword overflow_limit =
+      reinterpret_cast<uword>(stack_limit_) + sizeof(Activation::Layout);
+  uword overflow_or_interrupt = checked_stack_limit_.exchange(overflow_limit);
+
+  if ((overflow_or_interrupt & kInterruptSIGINT) != 0) {
+    isolate_->PrintStack();  // SAFEPOINT
     Exit();
   }
 
-  // True overflow: reclaim stack space by moving all frames except the top
-  // frame to the heap.
-  CreateBaseFrame(FlushAllFrames());  // SAFEPOINT
+  if ((overflow_or_interrupt & kInterruptRememberedSet) != 0) {
+    heap_->RememberedSetInterrupt();  // SAFEPOINT
+  }
+
+  if (reinterpret_cast<uword>(sp_) < overflow_limit) {
+    // Stack overflow: reclaim stack space by moving all frames except the top
+    // frame to the heap.
+    CreateBaseFrame(FlushAllFrames());  // SAFEPOINT
+  }
 }
 
 String Interpreter::SelectorAt(intptr_t index) {
@@ -955,7 +937,7 @@ void Interpreter::LocalBaseReturn(Object result) {
   // Returning from the base frame.
   Activation top;
   {
-    HandleScope h(H, reinterpret_cast<Object*>(&result));
+    HandleScope h(H, &result);
     top = FlushAllFrames();  // SAFEPOINT
   }
 
@@ -1017,8 +999,8 @@ void Interpreter::NonLocalReturn(Object result) {
 
   Activation top;
   {
-    HandleScope h1(H, reinterpret_cast<Object*>(&home));
-    HandleScope h2(H, reinterpret_cast<Object*>(&result));
+    HandleScope h1(H, &home);
+    HandleScope h2(H, &result);
     top = FlushAllFrames();  // SAFEPOINT
   }
 
@@ -1132,9 +1114,7 @@ void Interpreter::Interpret() {
     case 0: case 1: case 2: case 3: case 4: case 5: case 6: case 7:
     case 8: case 9: case 10: case 11: case 12: case 13: case 14: case 15:
       ip_ -= (byte1 & 15);
-      if (sp_ < checked_stack_limit_) {
-        StackOverflow();
-      }
+      StackOverflowOrInterruptCheck();  // SAFEPOINT
       break;
     case 16: case 17: case 18: case 19: case 20: case 21: case 22: case 23:
     case 24: case 25: case 26: case 27: case 28: case 29: case 30: case 31:
@@ -1516,9 +1496,7 @@ void Interpreter::Interpret() {
       uint8_t byte3 = *ip_++;
       intptr_t delta = (byte3 << 8) | byte2;
       ip_ -= delta;
-      if (sp_ < checked_stack_limit_) {
-        StackOverflow();
-      }
+      StackOverflowOrInterruptCheck();  // SAFEPOINT
       break;
     }
     case 241: {
@@ -1668,7 +1646,7 @@ Activation Interpreter::EnsureActivation(Object* fp) {
 
 Activation Interpreter::FlushAllFrames() {
   Activation top = EnsureActivation(fp_);  // SAFEPOINT
-  HandleScope h1(H, reinterpret_cast<Object*>(&top));
+  HandleScope h1(H, &top);
 
   while (fp_ != nullptr) {
     EnsureActivation(fp_);  // SAFEPOINT
@@ -1742,7 +1720,7 @@ void Interpreter::SetCurrentActivation(Activation new_activation) {
   ASSERT(new_activation->IsActivation());
 
   if (fp_ != nullptr) {
-    HandleScope h1(H, reinterpret_cast<Object*>(&new_activation));
+    HandleScope h1(H, &new_activation);
     FlushAllFrames();  // SAFEPOINT
   }
 
@@ -1769,8 +1747,8 @@ void Interpreter::ActivationSenderPut(Activation activation,
   if (HasLivingFrame(activation)) {
     Activation top;
     {
-      HandleScope h1(H, reinterpret_cast<Object*>(&activation));
-      HandleScope h2(H, reinterpret_cast<Object*>(&new_sender));
+      HandleScope h1(H, &activation);
+      HandleScope h2(H, &new_sender);
       top = FlushAllFrames();  // SAFEPOINT
     }
     activation->set_sender(new_sender);
@@ -1808,8 +1786,8 @@ void Interpreter::ActivationBCIPut(Activation activation,
   if (HasLivingFrame(activation)) {
     Activation top;
     {
-      HandleScope h1(H, reinterpret_cast<Object*>(&activation));
-      HandleScope h2(H, reinterpret_cast<Object*>(&new_bci));
+      HandleScope h1(H, &activation);
+      HandleScope h2(H, &new_bci);
       top = FlushAllFrames();  // SAFEPOINT
     }
     activation->set_bci(new_bci);
@@ -1824,8 +1802,8 @@ void Interpreter::ActivationMethodPut(Activation activation,
   if (HasLivingFrame(activation)) {
     Activation top;
     {
-      HandleScope h1(H, reinterpret_cast<Object*>(&activation));
-      HandleScope h2(H, reinterpret_cast<Object*>(&new_method));
+      HandleScope h1(H, &activation);
+      HandleScope h2(H, &new_method);
       top = FlushAllFrames();  // SAFEPOINT
     }
     activation->set_method(new_method);
@@ -1840,8 +1818,8 @@ void Interpreter::ActivationClosurePut(Activation activation,
   if (HasLivingFrame(activation)) {
     Activation top;
     {
-      HandleScope h1(H, reinterpret_cast<Object*>(&activation));
-      HandleScope h2(H, reinterpret_cast<Object*>(&new_closure));
+      HandleScope h1(H, &activation);
+      HandleScope h2(H, &new_closure);
       top = FlushAllFrames();  // SAFEPOINT
     }
     activation->set_closure(new_closure);
@@ -1856,8 +1834,8 @@ void Interpreter::ActivationReceiverPut(Activation activation,
   if (HasLivingFrame(activation)) {
     Activation top;
     {
-      HandleScope h1(H, reinterpret_cast<Object*>(&activation));
-      HandleScope h2(H, reinterpret_cast<Object*>(&new_receiver));
+      HandleScope h1(H, &activation);
+      HandleScope h2(H, &new_receiver);
       top = FlushAllFrames();  // SAFEPOINT
     }
     activation->set_receiver(new_receiver);
@@ -1916,8 +1894,7 @@ void Interpreter::ActivationTempSizePut(Activation activation,
   if (HasLivingFrame(activation)) {
     Activation top;
     {
-      HandleScope h1(H, reinterpret_cast<Object*>(&activation));
-      HandleScope h2(H, reinterpret_cast<Object*>(&new_size));
+      HandleScope h1(H, &activation);
       top = FlushAllFrames();  // SAFEPOINT
     }
     intptr_t old_size = activation->StackDepth();
