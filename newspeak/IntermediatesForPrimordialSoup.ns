@@ -218,6 +218,9 @@ public checkNameConflictsForLazySlot: selector <Symbol>  mutable: isMutable <Boo
 		method selector = (selector, ':') ifTrue:
 			[^Error signal: 'Class already has method named ', method selector]].
 )
+public isKindOfIntermediateMixin ^ <Boolean> = (
+  ^true
+)
 ) : (
 )
 public class IntermediateSlotDeclaration = (|

@@ -17,6 +17,7 @@ Copyright 2008 Cadence Design Systems, Inc.
 Copyright 2010 Gilad Bracha, Felix Geller and Ryan Macnak
 Copyright 2011 Matthias Kleine, Ryan Macnak and Cadence Design Systems
 Copyright 2013 Ryan Macnak
+Copyright 2020-2026 Gilad Bracha
 
 Licensed under the Apache License, Version 2.0 (the ''License''); you may not use this file except in compliance with the License. You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0 *)
 |
@@ -37,6 +38,7 @@ Licensed under the Apache License, Version 2.0 (the ''License''); you may not us
 	private TupleAST = asts TupleAST.
     private VarDeclAST = asts VarDeclAST.
 	private VariableAST = asts VariableAST.
+    private MutableSlotDefAST = asts MutableSlotDefAST.
     
 	public namer = Namer new.
 |) (
@@ -971,7 +973,7 @@ astForLazySlotInitializer: tree <SlotDefAST> do: astAndSourceBlock <[:MethodAST 
 
 	messagePattern:: (MessagePatternAST new
 		selector: initMethodName;
-		accessModifier: #protected;
+		accessModifier: #private;
 		parameters: {}).
 
 	return:: ReturnStatAST new
@@ -993,47 +995,13 @@ astForLazySlotInitializer: tree <SlotDefAST> do: astAndSourceBlock <[:MethodAST 
     newSource:: selector, binding, (sourceForNode: initializer).
 	astAndSourceBlock value: newAST value: newSource.
 )
-compileLazySlotNoAdd: tree <SlotDefAST> ^ <IntermediateLazySlot> = (
-	| 
-    intermediateLS <IntermediateLazySlot> 
-    treeMainMethod <SlotDefAST>
-    initMethod <IntermediateMethod>  
-    mainMethod <IntermediateMethod>
-    |
-	intermediateLS:: IntermediateLazySlot new.
-
-	(* cache slot is created by IntermediateLazySlot *)
-
-	(* init method *)
-	 astForLazySlotInitializer: tree do:
-		[:treeInitMethod :newSource |
-		initMethod:: compileMethod: treeInitMethod.
-		initMethod isSynthetic: true.
-		intermediateLS intermediateInitMethod: initMethod].
-
-	(* main method  *)
-	treeMainMethod:: astForLazySlotGetter: tree.
-	mainMethod:: compileMethod: treeMainMethod.
-	mainMethod isSynthetic: true.
-	intermediateLS intermediateMainMethod: mainMethod.
-
-	(* setter Method*)
-	tree isMutable ifTrue:
-		[ | treeSetterMethod setterMethod |
-		treeSetterMethod:: astForLazySlotSetter: tree.
-		setterMethod:: compileMethod: treeSetterMethod.
-		setterMethod isSynthetic: true.
-		intermediateLS intermediateSetterMethod: setterMethod].
-
-	^intermediateLS
-)
-astForLazySlotGetter: tree <SlotDefAST> = (
+astForLazySlotGetter: tree <MethodAST> = (
 (* Build an AST for a method that would lazily create a execute the expression in a lazy slot, and cache it. The generated code has the form
 
 simpleName = (
-	self simpleName`slot isNil ifTrue:
-		[self simpleName`slot: initLazySlotExpression].
-	^self simpleName`slot
+	simpleName`cache`slot isNil ifTrue:
+		[simpleName`cache`slot: simpleName`method].
+	^self simpleName`cache`slot
 )
 
 *)
@@ -1094,7 +1062,7 @@ simpleName = (
 			statements: stmts);
 		copyPositionFrom: tree
 )
-astForLazySlotSetter: tree <SlotDefAST> = (
+astForLazySlotSetter: tree <SlotDefAST> ^ <MethodAST> = (
 	| cacheSlotName selector assignToSlot newValueParameter parameterName parameter stmts = List new. |
 
 	selector:: tree name asSymbol.
@@ -1124,6 +1092,47 @@ astForLazySlotSetter: tree <SlotDefAST> = (
 			temporaries: {}
 			statements: stmts);
 		copyPositionFrom: tree
+)
+astForLazySlotCache: tree <SlotDefAST>  = (
+  | var = VarDeclAST name: (IntermediateLazySlot slotNameForLazySlotNamed: tree name) type: nil . |
+  ^MutableSlotDefAST new slotDecl: var; accessModifier: #private; yourself
+)
+compileLazySlotNoAdd: tree <SlotDefAST> ^ <IntermediateLazySlot> = (
+	| 
+    intermediateLS <IntermediateLazySlot> 
+    treeMainMethod <MethodAST>
+    initMethod <IntermediateMethod>  
+    mainMethod <IntermediateMethod>
+    |
+	intermediateLS:: IntermediateLazySlot new.
+
+	(* init method *)
+	 astForLazySlotInitializer: tree do:
+		[:treeInitMethod <MethodAST> :newSource <String> |
+        toScope: currentScope addMethod: treeInitMethod.
+		initMethod:: compileMethod: treeInitMethod.
+		initMethod isSynthetic: true.
+		intermediateLS intermediateInitMethod: initMethod].
+
+	(* cache slot is created by IntermediateLazySlot, but we need it in scope before creating the main method *)
+    toScope: currentScope addSlot: (astForLazySlotCache: tree).
+
+    (* main method  *)
+  
+	treeMainMethod:: astForLazySlotGetter: tree.
+	mainMethod:: compileMethod: treeMainMethod.
+	mainMethod isSynthetic: true.
+	intermediateLS intermediateMainMethod: mainMethod.
+
+	(* setter Method*)
+	tree isMutable ifTrue:
+		[ | treeSetterMethod <MethodAST> setterMethod <IntermediateMethod> |
+		treeSetterMethod:: astForLazySlotSetter: tree.
+		setterMethod:: compileMethod: treeSetterMethod.
+		setterMethod isSynthetic: true.
+		intermediateLS intermediateSetterMethod: setterMethod].
+
+	^intermediateLS
 )
 ) : (
 )

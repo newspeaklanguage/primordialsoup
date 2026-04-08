@@ -92,6 +92,12 @@ public class Exemplar usingPlatform: p = ( | List = p collections List. | ) (
 public parseLazySlotDeclaration: input <String> ^ <SlotDefAST> = (
 	^(Parser for: input) advanceToken parseLazySlotDeclaration
 )
+public parseMessagePattern: input <String> = (
+	^(Parser for: input) advanceToken parseMessagePattern
+)
+public parseMethodHeader: input <String> = (
+	^(Parser for: input) advanceToken parseMethodHeader
+)
 ) : (
 )
 class ParseError message: m position: p 
@@ -624,6 +630,14 @@ public parseMethodDeclarationEnd = (
 	| result = parseMethodDeclaration. |
 	tokenKind = #end ifFalse: [expected: 'end of input'].
 	^result
+)
+public parseMethodHeader = (
+	(* Parse just the method header: accessModifier opt, messagePattern *)
+	| am pattern |
+	am:: parseAccessModifierOpt.
+	pattern:: parseMessagePattern.
+	pattern accessModifier: am.
+	^pattern
 )
 public parseParenthesizedExpression = (
 	(* parenthesizedExpression = lparen, expression, rparen. *)
