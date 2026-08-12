@@ -267,8 +267,6 @@ numTemps <SmallInteger>
 			private format <SmallInteger>
 		|
 	) (
-		
-		(* Must be slot 6, known to the VM. *)
 		public isKindOfBehavior = (
 			^true
 		)
@@ -456,8 +454,6 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 			public _enclosingMixin <InstanceMixin | nil>
 		|
 	) (
-		
-		(* Must be slot 3, known to the VM. *)
 		public _name ^<String> = (
 			^_instanceMixin _name , ' class'
 		)
@@ -712,10 +708,6 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 		|
 	) (
 	) : ()
-	
-	(* Must be slot 3, known to the VM. *)
-	
-	(* Must have no other slots. Can be subclassed, but subclasses won't have the ephemeron property. *)
 	public class Exception new = Object new (
 		|
 			private signalActivation <Activation>
@@ -723,8 +715,6 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 			public messageText
 		|
 	) (
-		
-		(* squeak compatibility for Minitest *)
 		private invokeOnDoHandler: handler <Activation> = (
 			| handlerResult |
 			handler tempAt: 3 put: false.
@@ -894,8 +884,6 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 	) : ()
 	public class Float _cannotInstantiate = Number new (
 	) (
-		
-		(* See Integer for the double-dispatch result-typing scheme; on Float every result is Float. *)
 		public + x <def X> ^<Y> where { Y :: returnType of (addFromFloat: message of (arg 1)) } = (
 			(* :literalmessage: primitive: 1 *)
 			
@@ -1045,9 +1033,6 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 			public denominator <Integer> = denom.
 		|
 	) (
-		
-		(* Coercion-typing helpers: result of Integer/Float <op> aFraction. Integer-from results may
-   reduce to an Integer, so they are typed Number; Float-from results are always Float. *)
 		public addFromInteger: x <Integer> ^<Number> = (
 			^x * denominator + numerator / denominator
 		)
@@ -1477,10 +1462,6 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 	) : ()
 	public class Integer new = Number new (
 	) (
-		
-		(* Arithmetic with double-dispatch result typing: the result type is the return type of the
-   `<op>FromInteger:` helper on the argument's type (Integer->Integer, Float->Float, ...). The
-   primitive handles the common same-type/mixed-VM-number cases; the body is the fallback. *)
 		public + x <def X> ^<Y> where { Y :: returnType of (addFromInteger: message of (arg 1)) } = (
 			(* :literalmessage: primitive: 1 *)
 			
@@ -1911,12 +1892,6 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 			
 			^(ArgumentError value: other) signal
 		)
-		
-		(* Coercion-typing helpers for mixed-type arithmetic (Strongtalk style). `<op>From<T>:`
-   answers (originalReceiver-of-type-T) <op> self; its return TYPE encodes the result type of
-   that mixed operation, which the `<op>` operators read via a where-clause. Number's versions
-   are unreachable at runtime (Number is abstract) and exist for the case where an argument is
-   statically typed Number. *)
 		public addFromInteger: x <Integer> ^<Number> = (
 			^x + self
 		)
@@ -2983,6 +2958,7 @@ This class is currently named _Object to break a cycle in the class hierarchy th
 			^(self = other) not
 		)
 		subclassResponsibility = (
+			^Error signal: 'Subclass responsibility'
 		)
 	) : ()
 	public class MethodMetadata source: s <String> isLazy: b <Boolean> = Object new (
