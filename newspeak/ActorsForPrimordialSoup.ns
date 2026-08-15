@@ -70,7 +70,7 @@ Note that all slots contain objects that belong to the actor in which the messag
 			] on: Exception
 				do: [:error |
 					nil = resolver ifTrue: [
-							'Exception in turn without resolver' out.
+							reportUnresolvedTurnFailure: error.
 							error pass
 						].
 					resolution:: error.
@@ -79,6 +79,28 @@ Note that all slots contain objects that belong to the actor in which the messag
 			nil = resolver ifTrue: [ ^self ].
 			resolver internalResolve: (#value = type ifTrue: [ asInternalRef: resolution ]
 					ifFalse: [ InternalBrokenRef problem: resolution ])
+		)
+		reportUnresolvedTurnFailure: error = (
+			(* An exception in a turn with no resolver has nowhere to report to, so it is
+   passed on - but it is also the last chance to say anything about it. The bare
+   'Exception in turn without resolver' this used to print named neither the send
+   that failed nor the failure, which made it a common dead end when diagnosing
+   (a hot-load crash, an amplet blowing up in a callback).
+
+   Defensive throughout, because a diagnostic must never replace the exception it
+   is reporting: printString can fail on a broken or proxied receiver, and
+   messageText is frequently nil, which raises on concatenation. *)
+			
+			| receiverText selectorText errorText |
+			receiverText:: [ receiver printString ] on: Exception
+				do: [:e | '<unprintable receiver>' ].
+			selectorText:: [ selector printString ] on: Exception
+				do: [:e | '<unprintable selector>' ].
+			errorText:: [ error printString ] on: Exception
+				do: [:e | '<unprintable exception>' ].
+			[
+				('Exception in turn without resolver: ' , receiverText , ' ' , selectorText , ' -- ' , errorText) out
+			] on: Exception do: [:e | 'Exception in turn without resolver' out ]
 		)
 	) : ()
 	class EventualSendReactor selector: s arguments: a resolver: r = Object new (
