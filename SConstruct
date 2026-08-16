@@ -176,11 +176,13 @@ def BuildVM(cxx, arch, target_os, debug, sanitize):
       '-s', 'ALLOW_MEMORY_GROWTH=1',
       '-s', 'ENVIRONMENT=web',
       '-s', 'EXPORTED_FUNCTIONS=["_load_snapshot", "_handle_message", "_handle_signal", "_free", "_malloc"]',
-      '-s', 'EXPORTED_RUNTIME_METHODS=["stringToUTF8"]',
+      '-s', 'EXPORTED_RUNTIME_METHODS=["stringToUTF8","writeArrayToMemory"]',
       '-s', 'FILESYSTEM=0',
-      '-s', 'MALLOC=emmalloc',
       '-s', 'TOTAL_STACK=131072',
+      '-s', 'SUPPORT_LONGJMP=emscripten',
+      '-s', 'WASM_BIGINT=0',
       '--shell-file', 'meta/shell.html',
+      '--post-js', 'meta/custom-post.js',
     ]
   else:
     raise Exception('Unknown operating system: ' + target_os)
