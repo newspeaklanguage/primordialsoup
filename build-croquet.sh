@@ -24,8 +24,10 @@ fi
 cp SConstruct SConstruct.bak
 trap 'if [ -e SConstruct.bak ]; then mv -f SConstruct.bak SConstruct; fi; rm -f SConstruct.tmp' EXIT INT TERM
 
-# Replace custom-post.js with croquet-post.js in SConstruct
-sed -i.tmp "s/'--post-js', 'meta\/custom-post.js'/'--post-js', 'meta\/croquet-post.js'/g" SConstruct
+# Swap in the Croquet post-js, and add the pre-js that gates Newspeak's startup on
+# the Croquet session (see meta/croquet-pre.js).
+sed -i.tmp "s|'--post-js', 'meta/custom-post.js'|'--pre-js', 'meta/croquet-pre.js',\n      '--post-js', 'meta/croquet-post.js'|g" SConstruct
+grep -q "croquet-pre.js" SConstruct || { echo "ERROR: SConstruct not rewritten for Croquet"; exit 1; }
 
 # Force the link step to re-run. Swapping --post-js does not change scons's
 # dependency signature, so scons reports "`.' is up to date" and skips the link

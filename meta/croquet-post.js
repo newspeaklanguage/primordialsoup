@@ -1,4 +1,176 @@
-/*
+/* Croquet integration for the Newspeak runtime, linked in via --post-js.
+   Extracted verbatim from the working hand-maintained croquetpsoup.js (the tail
+   following the emscripten glue), which was the only copy that ever ran. */
+var theModel;
+var theView;
+var localViewId;
+
+function replaceUndefined(obj, seen = new Map()) {
+    // Check if the current value is an object and not null
+    if (obj && typeof obj === 'object') {
+        // If we've already seen this object, return its previously processed copy to avoid infinite recursion
+        if (seen.has(obj)) {
+            return seen.get(obj);
+        }
+        
+        // Create a copy of the object or array
+        let copy = Array.isArray(obj) ? [] : {};
+        
+        // Store the copy in the Map before processing further to handle cyclic references
+        seen.set(obj, copy);
+        
+        // Recursively process each key/value pair, including inherited properties
+        for (let key in obj) {
+            // Replace `undefined` with an empty object
+            if (obj[key] === undefined) {
+                copy[key] = {};
+            } else {
+                // Recursively process the value
+                copy[key] = replaceUndefined(obj[key], seen);
+            }
+        }
+        return copy;
+    }
+    
+    // Return the value if it's not an object (base case)
+    return obj;
+}
+
+function printJSObjectTree(obj, indent = 0) {
+    // Create a string of spaces for indentation
+    const indentString = ' '.repeat(indent);
+
+    // Check if the current value is an object and not null
+    if (obj && typeof obj === 'object') {
+        // If it's an array, print each element
+        if (Array.isArray(obj)) {
+            console.log(indentString + '[Array]');
+            obj.forEach((item, index) => {
+                console.log(indentString + `  [${index}]`);
+                printJSObjectTree(item, indent + 4);
+            });
+        } else {
+            // If it's an object, print each key/value pair
+            console.log(indentString + '{Object}');
+            for (let key in obj) {
+                if (true) {
+                    console.log(indentString + `  ${key}:`);
+                    printJSObjectTree(obj[key], indent + 4);
+                }
+            }
+        }
+    } else {
+        // If it's not an object, just print the value
+        console.log(indentString + obj);
+    }
+}
+
+function sanitizeKeydownEvent(kde) {
+    return {
+        key: kde.key,
+	metaKey: kde.metaKey,
+	ctrlKey: kde.ctrlKey,
+	shiftKey: kde.shiftKey,
+	altKey: kde.altKey
+    }
+
+}
+function storeModelAndView(m, v) {
+    theModel = m;
+    theView = v;
+    croquetInitDone = true;
+}
+
+function newspeakFragmentData(fid, data) {
+    return {fid: fid, data: data}
+}
+
+function nsCodeMirrorChange(change) {
+    return {from: nsCursorPos(change.from.ch, change.from.line),
+	    to:  nsCursorPos(change.to.ch, change.to.line),
+	    text: change.text,
+	    removed: change.removed
+	   }
+}
+
+function nsCodeMirrorSelectionChange(change) {
+    var from = change.ranges[0].anchor;
+    var to = change.ranges[0].head;
+    return {anchor: {line: from.line, ch: from.ch},
+	    head: {line: to.line, ch: to.ch}
+	   }
+}
+
+function nsPopstateData(event){
+    return {state: event.state}
+}
+
+function nsCursorPos(ch, line) {
+    return {ch: ch, line: line}
+}
+
+function nsCodeMirrorData(textBeingAccepted, change) {
+    return {
+	textBeingAccepted: textBeingAccepted,
+	change: change
+    }
+}
+
+
+function nsTextEditorData(textBeingAccepted, selectionStart, selectionEnd) {
+    return {
+	textBeingAccepted: textBeingAccepted,
+	selectionStart: selectionStart,
+	selectionEnd: selectionEnd
+    }
+}
+
+function fileish(fd) {
+    /* Why not just create a File object? Because the File API is not invertible; you cannot pass it the webkitRelativePath property. On the other hand,
+some APIs we use (like JSZip) insist on taking File. So we probably will scrap this code. */
+    buffer = fd.arrayBuff;
+    
+    return {
+	name: fd.name,
+	type: fd.type,
+	lastModified: fd.lastModified,
+	webkitRelativePath: fd.webkitRelativePath,
+        arrayBuffer: function() {
+            return Promise.resolve(buffer);
+        },
+        bytes: function() {
+            return Promise.resolve(new Uint8Array(buffer));
+        },
+        slice: function(start = 0, end = buffer.byteLength) {
+            const slicedBuffer = buffer.slice(start, end);
+            return Promise.resolve(slicedBuffer);
+        },
+        stream: function() {
+            const readableStream = new ReadableStream({
+                start(controller) {
+                    controller.enqueue(new Uint8Array(buffer));
+                    controller.close();
+                }
+            });
+            return Promise.resolve(readableStream);
+        },
+        text: function() {
+            const decoder = new TextDecoder();
+            const text = decoder.decode(buffer);
+            return Promise.resolve(text);
+        }
+    };
+}
+
+// The number of the last event processed by this client
+var lastProcessedEvent = 0;
+
+// convenience method to increment the processed event count. Easier to call from Newspeak.
+function eventProcessed() {
+    lastProcessedEvent++;
+}
+
+/* 
 A map describing all the subscription handlers Newspeak has to Croquet events. 
 Each entry lists the scope, event spec and handler for a given subscription. This is needed, so that we can replay them when Croquet creates a new view, which it does when it restores from a snapshot. At that point, all our existing subscriptions are gone, and we have to resubscribe. See replaySubscriptions()
 */
