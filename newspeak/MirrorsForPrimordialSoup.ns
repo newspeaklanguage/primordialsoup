@@ -2944,6 +2944,21 @@ c. If the slot is mutable, there will be a third method, which is an ordinary se
 		
 		halt
 	)
+	public allSelectorsDo: action <[:String | Object]> = (
+		(* Every selector the image may send. Selectors are canonical strings and
+	the heap holds them all, so scanning it answers the selector set exactly.
+	Callers wanting only programmer-visible names filter what they get back
+	(see Namespacing SystemScope allSelectorsDo:).
+
+	This lived in Namespacing until 2026-08-16, where it obliged shared IDE code
+	to know both that selectors are strings on the heap and how to ask whether
+	one is canonical. Neither is true of every platform: the JS runtime keeps a
+	registry of selectors instead (MirrorsForJS allSelectorsDo:). *)
+		
+		(allInstancesOf: String) do: [:s <String> |
+				(isCanonical: s) ifTrue: [ action value: s ]
+			]
+	)
 	private allocate: cls = (
 		(* :literalmessage: primitive: 34 *)
 		
@@ -3039,6 +3054,11 @@ c. If the slot is mutable, there will be a third method, which is an ordinary se
 		cls:: classOf: cls.
 		assert: [ Metaclass = cls ] message: ''.
 		^false
+	)
+	private isCanonical: object = (
+		(* :literalmessage: primitive: 126 *)
+		
+		halt
 	)
 	private isSubinitializerSelector: selector = (
 		(selector startsWith: 'mixinInitializer`') ifTrue: [ ^true ].
