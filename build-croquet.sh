@@ -10,8 +10,19 @@ cp out/DebugEmscriptenWASM/primordialsoup.html out/.temp/primordialsoup-debug.ht
 cp out/DebugEmscriptenWASM/primordialsoup.js out/.temp/primordialsoup-debug.js
 cp out/DebugEmscriptenWASM/primordialsoup.wasm out/.temp/primordialsoup-debug.wasm
 
-# Save original SConstruct
+# Save original SConstruct, and restore it however we exit. Without the trap, any
+# failure below leaves SConstruct pointing at croquet-post.js -- and the NEXT run
+# then copies that swapped file over SConstruct.bak, making the swap permanent and
+# silently building the standard runtime with the Croquet post-js from then on.
+# Refuse to start if a stale backup is lying around, since that means a previous
+# run died and SConstruct may already be the swapped one.
+if [ -e SConstruct.bak ]; then
+  echo "ERROR: SConstruct.bak exists -- a previous run left SConstruct swapped."
+  echo "       Check 'git diff SConstruct', restore it, remove SConstruct.bak."
+  exit 1
+fi
 cp SConstruct SConstruct.bak
+trap 'if [ -e SConstruct.bak ]; then mv -f SConstruct.bak SConstruct; fi; rm -f SConstruct.tmp' EXIT INT TERM
 
 # Replace custom-post.js with croquet-post.js in SConstruct
 sed -i.tmp "s/'--post-js', 'meta\/custom-post.js'/'--post-js', 'meta\/croquet-post.js'/g" SConstruct
@@ -45,6 +56,22 @@ for js in out/ReleaseEmscriptenWASM/croquetpsoup.js out/DebugEmscriptenWASM/prim
   grep -q 'NewspeakCroquetModel' "$js" || {
     echo "ERROR: $js has no Croquet integration -- the link step did not re-run"; exit 1; }
 done
+
+# ... and it must PARSE. The greps above cannot catch a malformed post-js: a
+# broken comment still contains the strings they look for. Not hypothetical --
+# meta/croquet-post.js was missing its opening /*, so every runtime this script
+# ever produced died at load with 'Unexpected identifier', while the greps passed.
+# Emscripten ships its own node, which we prefer: a system node may be too old or,
+# as here, broken by a missing dylib.
+NODE=$(ls -d "${EMSDK}"/node/*/bin/node 2>/dev/null | tail -1) || true
+[ -n "$NODE" ] && [ -x "$NODE" ] || NODE=$(command -v node || true)
+if [ -n "$NODE" ] && [ -x "$NODE" ]; then
+  "$NODE" --check out/ReleaseEmscriptenWASM/croquetpsoup.js || {
+    echo "ERROR: generated croquetpsoup.js is not valid JavaScript"; exit 1; }
+  echo "croquetpsoup.js parses"
+else
+  echo "WARNING: no usable node found; skipped the JavaScript syntax check"
+fi
 
 cp out/DebugEmscriptenWASM/primordialsoup.html out/DebugEmscriptenWASM/croquetpsoup.html
 cp out/DebugEmscriptenWASM/primordialsoup.js out/DebugEmscriptenWASM/croquetpsoup.js
@@ -80,7 +107,6 @@ cp out/.temp/primordialsoup-debug.wasm out/DebugEmscriptenWASM/primordialsoup.wa
 
 # Cleanup
 rm -rf out/.temp
-mv SConstruct.bak SConstruct
-rm -f SConstruct.tmp
+# SConstruct is restored by the EXIT trap installed above, on success or failure.
 
 echo "Croquet version built successfully"
