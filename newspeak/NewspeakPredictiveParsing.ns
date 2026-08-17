@@ -258,11 +258,20 @@ public class Exemplar usingPlatform: p = ( | List = p collections List. | ) (
 			instanceSide:: parseInstanceSide.
 			tokenKind = #':' ifTrue: [ classSide:: parseClassSide ]
 				ifFalse: [ classSide:: defaultClassSide ].
+			
+			(* The declaration ends at the last side's closing paren. An
+	   omitted ': ()' clause yields defaultClassSide, which has no
+	   source and so reports end 0; fall back to the instance side.
+	   Tools that reorder members (the pretty printer) need this to
+	   know which comments live inside a nested class, so leaving it
+	   0 silently reattaches them to whatever else is nearby. *)
+			declEnd:: classSide end > 0 ifTrue: [ classSide end ]
+				ifFalse: [ instanceSide end ].
 			^ClassDeclarationAST new header: header;
 				instanceSide: instanceSide;
 				classSide: classSide;
 				start: declStart;
-				end: 0
+				end: declEnd
 		)
 		public parseClassDeclarationEnd = (
 			| result = parseClassDeclaration. |
@@ -349,18 +358,22 @@ public class Exemplar usingPlatform: p = ( | List = p collections List. | ) (
 		public parseClassSide = (
 			(* classSideDecl = colon, lparen, category star, rparen. *)
 			
-			| methods = List new. |
+			| methods = List new. sideStart sideEnd |
 			tokenKind = #':' ifFalse: [ expected: ':' ].
 			advanceToken.
 			tokenKind = #'(' ifFalse: [ expected: '(' ].
+			sideStart:: tokenStart.
 			advanceToken.
 			[ tokenKind = #')' ] whileFalse: [ methods add: parseMethodDeclaration ].
+			sideEnd:: tokenEnd.
 			advanceToken.
 			
 			(* Consume ) *)
 			^SideAST new lazySlots: {};
 				nestedClasses: {};
-				methods: methods
+				methods: methods;
+				start: sideStart;
+				end: sideEnd
 		)
 		public parseClosure = (
 			(* block = lbracket, blockParameters opt, codeBody, rbracket. *)
@@ -1449,8 +1462,9 @@ public class Exemplar usingPlatform: p = ( | List = p collections List. | ) (
 	   Members may appear in any order; the AST still bins them
 	   into separate lists by category. *)
 			
-			| nestedClasses = List new. lazySlots = List new. methods = List new. |
+			| nestedClasses = List new. lazySlots = List new. methods = List new. sideStart sideEnd |
 			tokenKind = #'(' ifFalse: [ expected: '(' ].
+			sideStart:: tokenStart.
 			advanceToken.
 			[ tokenKind = #')' ] whileFalse: [
 					peekHasClassDeclaration ifTrue: [ nestedClasses add: parseClassDeclaration ]
@@ -1459,12 +1473,15 @@ public class Exemplar usingPlatform: p = ( | List = p collections List. | ) (
 								ifFalse: [ methods add: parseMethodDeclaration ]
 						]
 				].
+			sideEnd:: tokenEnd.
 			advanceToken.
 			
 			(* Consume ) *)
 			^SideAST new lazySlots: lazySlots;
 				nestedClasses: nestedClasses;
-				methods: methods
+				methods: methods;
+				start: sideStart;
+				end: sideEnd
 		)
 		public parseLazySlotDeclaration = (
 			(* lazySlotDecl = (lazyModifier, accessModifier opt | accessModifier, lazyModifier),
@@ -1514,12 +1531,14 @@ public class Exemplar usingPlatform: p = ( | List = p collections List. | ) (
 						start: declStart;
 						end: init end
 				].
+			
+			(* previousTokenEnd, not tokenEnd -- see parseSlotDeclaration. *)
 			^MutableSlotDefAST new accessModifier: am;
 				isLazy: true;
 				slotDecl: var;
 				initializer: nil;
 				start: declStart;
-				end: tokenEnd
+				end: previousTokenEnd
 		)
 		public parseReturnType = (
 			tokenKind = '^' ifFalse: [ expected: '^' ].
@@ -1573,11 +1592,19 @@ public class Exemplar usingPlatform: p = ( | List = p collections List. | ) (
 						end: init end
 				].
 			tokenKind = #'.' ifTrue: [ advanceToken ].
+			
+			(* previousTokenEnd, not tokenEnd: the slot's own last token --
+	   its name, its type's '>', or its '.' -- has already been
+	   consumed, so tokenEnd is the end of the NEXT declaration's
+	   first token. Ending here reaches into the next slot, and any
+	   tool that asks what lies inside this slot (the pretty printer,
+	   deciding which comments belong to it) is answered with the
+	   next slot's text. *)
 			^MutableSlotDefAST new accessModifier: am;
 				slotDecl: var;
 				initializer: nil;
 				start: declStart;
-				end: tokenEnd
+				end: previousTokenEnd
 		)
 		public parseType = (
 			| type |
@@ -1663,12 +1690,21 @@ Frequency of Newspeak tokens:
 			public tokenStart <Integer> ::= 0.
 			public tokenKind <Symbol>
 			public tokenValue
+			public previousTokenEnd <Integer> ::= 0.
 		|
 	) (
 		
 		(* The evaluated token, not it's substring in the source. *)
 		public advanceToken = (
+			(* previousTokenEnd is where the token we are leaving ended.
+	   Nodes whose last token has already been consumed by the time
+	   they are built -- an uninitialized slot, whose declaration ends
+	   at its type or its '.' -- need it: tokenEnd by then belongs to
+	   the NEXT token, so an end taken from it reaches into the
+	   following declaration. *)
+			
 			| byte |
+			previousTokenEnd:: tokenEnd.
 			skipWhitespaceAndComments.
 			tokenStart:: position.
 			tokenValue:: nil.
