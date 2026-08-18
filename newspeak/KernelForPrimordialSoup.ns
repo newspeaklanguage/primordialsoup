@@ -249,22 +249,12 @@ numTemps <SmallInteger>
 	)
 	public class Behavior new = Object new (
 		|
-			private superclass <Behavior>
-			
-			(* Must be slot 1, known to the VM. *)
-			private methods <Array[Method]>
-			
-			(* Must be slot 2, known to the VM. *)
-			private enclosingObject <Object>
-			
-			(* Must be slot 3, known to the VM. *)
-			private mixin <AbstractMixin>
-			
-			(* Must be slot 4, known to the VM. *)
-			private classIndex <SmallInteger>
-			
-			(* Must be slot 5, known to the VM. *)
-			private format <SmallInteger>
+			private superclass <Behavior> (* Must be slot 1, known to the VM. *)
+			private methods <Array[Method]> (* Must be slot 2, known to the VM. *)
+			private enclosingObject <Object> (* Must be slot 3, known to the VM. *)
+			private mixin <AbstractMixin> (* Must be slot 4, known to the VM. *)
+			private classIndex <SmallInteger> (* Must be slot 5, known to the VM. *)
+			private format <SmallInteger> (* Must be slot 6, known to the VM. *)
 		|
 	) (
 		public isKindOfBehavior = (
@@ -418,9 +408,7 @@ numTemps <SmallInteger>
 	) : ()
 	public class Class new = Behavior new (
 		|
-			private nameS <Symbol>
-			
-			(* Must be slot 7, known to the VM for debug printing only. *)
+			private nameS <Symbol> (* Must be slot 7, known to the VM for debug printing only. *)
 			private subclasses <WeakArray>
 		|
 	) (
@@ -448,10 +436,8 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 		
 		|
 			public _instanceMixin <InstanceMixin>
-			public _methods <Array[Method]>
-			
-			(* Must be slot 2, known to the VM. *)
-			public _enclosingMixin <InstanceMixin | nil>
+			public _methods <Array[Method]> (* Must be slot 2, known to the VM. *)
+			public _enclosingMixin <InstanceMixin | nil> (* Must be slot 3, known to the VM. *)
 		|
 	) (
 		public _name ^<String> = (
@@ -698,33 +684,27 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 	) : ()
 	public class Ephemeron new = Object new (
 		|
-			public key
-			
-			(* Must be slot 1, known to the VM. *)
-			public value
-			
-			(* Must be slot 2, known to the VM. *)
-			public finalizer
+			public key (* Must be slot 1, known to the VM. *)
+			public value (* Must be slot 2, known to the VM. *)
+			public finalizer (* Must be slot 3, known to the VM. *)
 		|
+		(* Must have no other slots. Can be subclassed, but subclasses won't have the ephemeron property. *)
+		
 	) (
 	) : ()
 	public class Exception new = Object new (
 		|
 			private signalActivation <Activation>
 			private handlerActivation <Activation>
-			public messageText
+			public messageText (* squeak compatibility for Minitest *)
 		|
 	) (
 		private invokeOnDoHandler: handler <Activation> = (
 			| handlerResult |
-			handler tempAt: 3 put: false.
-			
-			(* handlerActive:: false. *)
+			handler tempAt: 3 put: false. (* handlerActive:: false. *)
 			handlerActivation:: handler.
 			handlerResult:: (handler tempAt: 2) value: self.
-			handler tempAt: 3 put: true.
-			
-			(* handlerActive:: true. *)
+			handler tempAt: 3 put: true. (* handlerActive:: true. *)
 			
 			(* What if the return is interrupted by unwind-protect? Should we hold off on removing these activations and check if they are dead instead? *)
 			signalActivation:: nil.
@@ -753,9 +733,7 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 			^savedSignalActivation return: resumptionValue
 		)
 		public retry = (
-			halt.
-			
-			(* Needs test *)
+			halt. (* Needs test *)
 			handlerActivation restart.
 			halt
 		)
@@ -1311,12 +1289,8 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 		
 		|
 			public _name <Symbol>
-			public _methods <Array[Method]>
-			
-			(* Must be slot 2, known to the VM. *)
-			public _enclosingMixin <InstanceMixin | nil>
-			
-			(* Must be slot 3, known to the VM. *)
+			public _methods <Array[Method]> (* Must be slot 2, known to the VM. *)
+			public _enclosingMixin <InstanceMixin | nil> (* Must be slot 3, known to the VM. *)
 			public _slots <Array[{Symbol. Boolean. Symbol}]>
 			public _nestedMixins <Array[InstanceMixin]>
 			public _applications <WeakArray>
@@ -1330,9 +1304,7 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 			| newMetaclass <Metaclass> newClass <Class> |
 			newMetaclass:: Metaclass new.
 			superclassOf: newMetaclass put: Class.
-			methodsOf: newMetaclass put: _classMixin _methods.
-			
-			(* Do we need a copy? *)
+			methodsOf: newMetaclass put: _classMixin _methods. (* Do we need a copy? *)
 			enclosingObjectOf: newMetaclass put: eo.
 			mixinOf: newMetaclass put: _classMixin.
 			formatOf: newMetaclass put: (formatOf: Class).
@@ -1374,13 +1346,9 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 		private isValidSuperclass: object = (
 			| cls cid |
 			cls:: classOf: object.
-			Metaclass = cls ifTrue: [ ^false ].
-			
-			(* [object] is a metaclass *)
+			Metaclass = cls ifTrue: [ ^false (* [object] is a metaclass *) ].
 			cls:: classOf: cls.
-			Metaclass = cls ifFalse: [ ^false ].
-			
-			(* [object] is an instance *)
+			Metaclass = cls ifFalse: [ ^false (* [object] is an instance *) ].
 			cid:: slotOf: object at: 5.
 			nil = cid ifTrue: [ ^true ].
 			^(cid between: 3 and: 13) not
@@ -1605,9 +1573,7 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 		)
 		public timesRepeat: action <[]> ^<Integer> = (
 			1 to: self do: [:ignore | action value ].
-			^nil
-			(* To match the inlined version *)
-			
+			^nil (* To match the inlined version *)
 		)
 		public | other <Integer> ^<Integer> = (
 			(* :literalmessage: primitive: 17 *)
@@ -1698,21 +1664,11 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 	) : ()
 	public class Method new = Object new (
 		|
-			public header <Integer>
-			
-			(* Must be slot 1, known to the VM. *)
-			public literals <Array>
-			
-			(* Must be slot 2, known to the VM. *)
-			public bytecode <ByteArray>
-			
-			(* Must be slot 3, known to the VM. *)
-			public mixin <AbstractMixin>
-			
-			(* Must be slot 4, known to the VM. *)
-			public selector <Symbol>
-			
-			(* Must be slot 5, known to the VM. *)
+			public header <Integer> (* Must be slot 1, known to the VM. *)
+			public literals <Array> (* Must be slot 2, known to the VM. *)
+			public bytecode <ByteArray> (* Must be slot 3, known to the VM. *)
+			public mixin <AbstractMixin> (* Must be slot 4, known to the VM. *)
+			public selector <Symbol> (* Must be slot 5, known to the VM. *)
 			public metadata <String | MethodMetadata | DebugInfo | Nil>
 		|
 	) (
@@ -1780,9 +1736,7 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 			accessor header: (headerForAccessModifier: am
 					primitive: 256 + index - 1
 					numArgs: 0).
-			accessor mixin: self.
-			
-			(* The method has no sends, so this is only for debugging. *)
+			accessor mixin: self. (* The method has no sends, so this is only for debugging. *)
 			accessor selector: name.
 			^accessor
 		)
@@ -1791,9 +1745,7 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 			accessor header: (headerForAccessModifier: #private
 					primitive: 512 + index - 1
 					numArgs: 1).
-			accessor mixin: self.
-			
-			(* The method has no sends, so this is only for debugging. *)
+			accessor mixin: self. (* The method has no sends, so this is only for debugging. *)
 			accessor selector: ('init`' , name , ':') asSymbol.
 			^accessor
 		)
@@ -1802,9 +1754,7 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 			accessor header: (headerForAccessModifier: am
 					primitive: 512 + index - 1
 					numArgs: 1).
-			accessor mixin: self.
-			
-			(* The method has no sends, so this is only for debugging. *)
+			accessor mixin: self. (* The method has no sends, so this is only for debugging. *)
 			accessor selector: (name , ':') asSymbol.
 			^accessor
 		)
@@ -2007,9 +1957,7 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 					action value: current.
 					current:: step + current
 				].
-			^nil
-			(* To match the inlined version *)
-			
+			^nil (* To match the inlined version *)
 		)
 		public to: stop <Number> do: action <[:Number | Object]> = (
 			| current ::= self. |
@@ -2017,9 +1965,7 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 					action value: current.
 					current:: 1 + current
 				].
-			^nil
-			(* To match the inlined version *)
-			
+			^nil (* To match the inlined version *)
 		)
 		public ** exponent <Number> ^<Number> = (
 			exponent isKindOfInteger ifTrue: [ ^self raisedToInteger: exponent ].
@@ -2079,15 +2025,11 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 			^cumulativeNanos + (currentMonotonicNanos - startNanos)
 		)
 		public start = (
-			nil = startNanos ifFalse: [ ^self ].
-			
-			(* Already running. *)
+			nil = startNanos ifFalse: [ ^self (* Already running. *) ].
 			startNanos:: currentMonotonicNanos
 		)
 		public stop = (
-			nil = startNanos ifTrue: [ ^self ].
-			
-			(* Already stopped. *)
+			nil = startNanos ifTrue: [ ^self (* Already stopped. *) ].
 			cumulativeNanos:: cumulativeNanos + (currentMonotonicNanos - startNanos).
 			startNanos:: nil
 		)
@@ -2417,9 +2359,7 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 		)
 		public writeln: line = (
 			self add: line.
-			self addByte: 10
-			(* Line-feed *)
-			
+			self addByte: 10 (* Line-feed *)
 		)
 	) : (
 		public new ^<StringBuilder> = (
@@ -2532,9 +2472,7 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 	)
 	public class WeakMap new = Object new (
 		|
-			private table ::= Array new: 256.
-			
-			(* A fairly large initial capacity because the expected usage is one per module. *)
+			private table ::= Array new: 256. (* A fairly large initial capacity because the expected usage is one per module. *)
 			private used ::= 0.
 		|
 	) (
