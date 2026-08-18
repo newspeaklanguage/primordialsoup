@@ -1684,17 +1684,13 @@ Frequency of Newspeak tokens:
 		|
 			private input <String> = string.
 			private size <Integer> = string size.
-			private position <Integer> ::= 1.
-			
-			(* Index of the next rune to scan. *)
+			private position <Integer> ::= 1. (* Index of the next rune to scan. *)
 			public tokenStart <Integer> ::= 0.
 			public tokenKind <Symbol>
-			public tokenValue
+			public tokenValue (* The evaluated token, not it's substring in the source. *)
 			public previousTokenEnd <Integer> ::= 0.
 		|
 	) (
-		
-		(* The evaluated token, not it's substring in the source. *)
 		public advanceToken = (
 			(* previousTokenEnd is where the token we are leaving ended.
 	   Nodes whose last token has already been consumed by the time
