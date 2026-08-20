@@ -182,6 +182,118 @@ function replaySubscriptions() {
     }
 }
 
+/* Large-payload detour.
+
+   The Croquet client SILENTLY DROPS any reflector message whose payload exceeds
+   16KB (PAYLOAD_LIMIT_MAX in controller.js, with a console.warn). The event then
+   reaches no model, no history, and no client's handler -- including the
+   sender's, whose DOM already shows the local edit. Since the editor fragments
+   publish their full buffer text on every keystroke, one large-enough editor
+   (e.g. a document's raw view) permanently desynchronized the session at the
+   first oversized keystroke.
+
+   The cure is the one files already use (see FileChooserFragment in
+   HopscotchForCroquet.ns): store the payload with the session Data API -- which
+   puts the encrypted bytes on the file server -- and publish only the returned
+   handle. On dispatch, fetch and decode before invoking the subscriber. Handles
+   serialize through events, the model's event history and snapshots, so replay
+   and late joiners work unchanged.
+
+   Ordering: store and fetch are asynchronous, and editor events carry the full
+   text, so applying a stale event after a newer one would regress the buffer.
+   Both directions are therefore serialized through FIFO promise chains: a
+   publish waits for the stores of all earlier publishes, and a dispatch waits
+   for the fetches of all earlier dispatches. Events arrive at human input rate,
+   so the queues cost nothing.
+
+   Exemption: payloads that already contain DataHandles (the file events). A
+   handle's fields live under Symbol keys, invisible to JSON, so a JSON detour
+   would destroy it. Those payloads are file METADATA and stay far below the
+   cap regardless. */
+
+const NS_DETOUR_LIMIT = 8 * 1024;  // half of Croquet's hard 16KB cap, for margin
+
+function nsIsDataHandle(x) {
+    if (!x || typeof x !== 'object') return false;
+    if (typeof Croquet !== 'undefined' && Croquet.Data) {
+	if (x instanceof Croquet.Data) return true;
+	// Duck-type fallback: toId() answers a non-empty id only for a real
+	// handle; anything else returns '' or throws on the malformed URL.
+	try { return Croquet.Data.toId(x) !== ''; } catch (e) { return false; }
+    }
+    return false;
+}
+
+function nsContainsDataHandle(x, depth = 0) {
+    if (!x || typeof x !== 'object' || depth > 8) return false;
+    if (nsIsDataHandle(x)) return true;
+    for (const k in x) {
+	if (nsContainsDataHandle(x[k], depth + 1)) return true;
+    }
+    return false;
+}
+
+var nsPublishChain = Promise.resolve();
+
+// The single outbound funnel: HopscotchForCroquet's publish:event:data: calls
+// this instead of theView.publish directly.
+function nsPublish(scope, eventSpec, data) {
+    nsPublishChain = nsPublishChain.then(async () => {
+	try {
+	    let payload = data;
+	    // Only {fid, data} envelopes can carry something big; bare payloads
+	    // (button clicks etc.) are fragment ids and stay tiny.
+	    const isEnvelope = data && typeof data === 'object'
+		  && 'fid' in data && 'data' in data;
+	    if (isEnvelope
+		&& JSON.stringify(data).length > NS_DETOUR_LIMIT
+		&& !nsContainsDataHandle(data.data)) {
+		const bytes = new TextEncoder().encode(JSON.stringify(data.data));
+		const handle = await theView.session.data.store(bytes.buffer);
+		payload = {fid: data.fid, data: {__nsDetouredPayload: true, handle: handle}};
+	    }
+	    theView.publish(scope, eventSpec, payload);
+	} catch (err) {
+	    console.error('nsPublish (' + scope + ' ' + eventSpec + ') failed; event not sent:', err);
+	}
+    });
+}
+
+var nsDispatchChain = Promise.resolve();
+
+// Resolve a possibly-detoured event payload: fetch and decode if it is a
+// handle envelope, otherwise pass it through. Shared by live dispatch and
+// replay.
+async function nsResolvePayload(e) {
+    if (e && e.__nsDetouredPayload) {
+	const buffer = await theView.session.data.fetch(e.handle);
+	return JSON.parse(new TextDecoder().decode(buffer));
+    }
+    return e;
+}
+
+// The single inbound funnel: HopscotchForCroquet's
+// subscribeFragment:scope:eventSpec:handler: calls this. It records the wrapped
+// handler in newspeakSubscriptions -- so resubscription after a snapshot
+// restore (replaySubscriptions) goes through the same wrapper -- and subscribes
+// it. The RAW handler is recorded too: replayEvents must invoke handlers
+// inline from its own chain thunks (see there), where calling the wrapped form
+// would re-enqueue and decouple lookup order from execution order.
+function nsSubscribe(scope, eventSpec, handler) {
+    const wrapped = e => {
+	nsDispatchChain = nsDispatchChain.then(async () => {
+	    try {
+		handler(await nsResolvePayload(e));
+	    } catch (err) {
+		console.error('Newspeak dispatch (' + scope + ' ' + eventSpec + ') failed; event skipped:', err);
+	    }
+	});
+    };
+    newspeakSubscriptions.set(scope + eventSpec,
+	{scope: scope, eventSpec: eventSpec, handler: wrapped, raw: handler});
+    theView.subscribe(scope, eventSpec, wrapped);
+}
+
 // Root model. See HopscotchForCroquet.ns for an overview of how
 // things work.
 
@@ -423,27 +535,69 @@ class NewspeakCroquetView extends Croquet.View {
         }
     }
 
-    // Called by Newspeak when any fragment subscribes to an event.
+    // Newspeak subscriptions arrive via nsSubscribe (above), which records the
+    // wrapped handler in newspeakSubscriptions and subscribes it. This method
+    // remains ONLY for compatibility with vfuels older than the large-payload
+    // detour, whose subscribeFragment: calls it (followed by a direct
+    // subscribe). Such handlers cannot resolve detoured payloads -- removing
+    // this method entirely made a stale cached vfuel die at its first
+    // subscription, during boot, with a blank screen.
     addSubscription(scope, eventSpec, handler) {
 	newspeakSubscriptions.set(scope + eventSpec, {scope: scope, eventSpec: eventSpec, handler: handler});
     }
-    
+
     storedData() {return this.session.data}
     
     replayEvents(from) {
-	for (var i = from; i < theModel.newspeakEvents.length; i++) {
-            var e = theModel.newspeakEvents[i];
+	// If Newspeak has not run yet (fresh client: this is the constructor's
+	// replay), no fragment has subscribed and we cannot replay; Newspeak
+	// will ask again after the first presenter is displayed.
+	if (newspeakSubscriptions.size === 0) return;
+	const total = theModel.newspeakEvents.length;
+	for (var i = from; i < total; i++) {
+	    const e = theModel.newspeakEvents[i];
 	    // the key to find the handler is the event scope (indicating the
 	    // type of fragment) followed by the fragment id
-	    // followed by the eventSpec	    
-	    var k = e.scope + e.fid + e.eventSpec;
-	    // Replay any events we haven't processed, unless this is
-	    // the first time we run, so Newspeak has not run yet and
-	    // newspeakSubscriptions will be empty, meaning we can't replay yet.
-	   // We'll have to wait for Newspeak to run and ask us to replay	
-	    if (newspeakSubscriptions.size > 0) {
-		newspeakSubscriptions.get(k).handler(e.data);
-	    }
+	    // followed by the eventSpec
+	    const k = e.scope + e.fid + e.eventSpec;
+	    const n = i;
+	    // Enqueue on the dispatch chain; live events arriving meanwhile
+	    // queue up behind and stay in order. The subscription lookup MUST
+	    // happen inside the thunk, at execution time: the target fragment
+	    // is typically constructed by an EARLIER replayed event (a
+	    // navigation, an editor opening), or by deferred content that
+	    // realizes across animation frames afterwards. A lookup at enqueue
+	    // time -- or a synchronous loop, as this originally was -- runs
+	    // before any of that construction and finds nothing.
+	    nsDispatchChain = nsDispatchChain.then(async () => {
+		// Wait for the subscriber to appear while deferred content
+		// drains (one action per animation frame; big pages take
+		// seconds). The timeout only bites for events whose fragment
+		// will never exist -- a genuinely diverged or stale session --
+		// where slow catch-up beats wrong catch-up.
+		let s = newspeakSubscriptions.get(k);
+		let waited = 0;
+		while (!s && waited < 15000) {
+		    await new Promise(r => setTimeout(r, 100));
+		    waited += 100;
+		    s = newspeakSubscriptions.get(k);
+		}
+		if (!s) {
+		    console.warn('Croquet replay: no subscriber for key "' + k +
+			'" (scope=' + e.scope + ' fid=' + e.fid + ' event=' + e.eventSpec +
+			') after ' + waited + 'ms, event ' + n + ' of ' + total + ' - skipped');
+		    return;
+		}
+		try {
+		    // raw, not the wrapped handler: wrapped would re-enqueue at
+		    // the chain's tail, decoupling execution from this slot.
+		    // (s.raw missing means an old-vfuel handler registered via
+		    // addSubscription; it is already raw.)
+		    (s.raw || s.handler)(await nsResolvePayload(e.data));
+		} catch (err) {
+		    console.error('Croquet replay of "' + k + '" failed; event skipped:', err);
+		}
+	    });
 	}
     }
     // Also called by Newspeak when it starts up the first time
