@@ -332,6 +332,39 @@ function nsSubscribe(scope, eventSpec, handler) {
     theView.subscribe(scope, eventSpec, wrapped);
 }
 
+/* Session persistence. Our session state is the recorded event history (the
+   heap is reconstructible from it), and with a standalone --storage=none
+   reflector that history lived ONLY in reflector RAM: ~10s after the last
+   client disconnected the island was deleted, and the next join silently
+   started a FRESH session under the same id -- history gone, later joiners
+   unable to catch up. Croquet's designed answer is Model.persistSession: the
+   root model periodically saves its essential state (encrypted, to the
+   session's file server via files=), and a fresh island incarnation receives
+   it in init(). The NS-PATCHed reflector remembers the pointer on local disk
+   (see reflector.js SAVE), so sessions survive everyone leaving AND reflector
+   restarts: connect from any device at any time.
+
+   DataHandles (detour payloads, file events) do not survive JSON, so the
+   collect/seed pair flattens them to ids (Croquet.Data.toId) and revives them
+   (Data.fromId) -- the same convention Croquet's own serializer uses. */
+function nsFlattenHandles(x, depth = 0) {
+    if (!x || typeof x !== 'object' || depth > 12) return x;
+    if (nsIsDataHandle(x)) return { __nsDataId: Croquet.Data.toId(x) };
+    if (Array.isArray(x)) return x.map(e => nsFlattenHandles(e, depth + 1));
+    const copy = {};
+    for (const k in x) { if (Object.prototype.hasOwnProperty.call(x, k)) copy[k] = nsFlattenHandles(x[k], depth + 1); }
+    return copy;
+}
+
+function nsReviveHandles(x, depth = 0) {
+    if (!x || typeof x !== 'object' || depth > 12) return x;
+    if (typeof x.__nsDataId === 'string') return Croquet.Data.fromId(x.__nsDataId);
+    if (Array.isArray(x)) return x.map(e => nsReviveHandles(e, depth + 1));
+    const copy = {};
+    for (const k in x) { if (Object.prototype.hasOwnProperty.call(x, k)) copy[k] = nsReviveHandles(x[k], depth + 1); }
+    return copy;
+}
+
 // Root model. See HopscotchForCroquet.ns for an overview of how
 // things work.
 
@@ -354,6 +387,22 @@ Only afterward is the snapshot state restored in the new model. Next a new root 
     
     addEvent(e){
 	this.newspeakEvents.push(e);
+	// Debounced persistence: one pending future per burst of events; the
+	// flag is model state, so it snapshots/restores consistently.
+	if (!this.persistPending) {
+	    this.persistPending = true;
+	    this.future(10000).doPersistTick();
+	}
+    }
+
+    doPersistTick() {
+	this.persistPending = false;
+	this.persistSession(() => ({
+	    version: 1,
+	    newspeakEvents: nsFlattenHandles(this.newspeakEvents),
+	    coordinatedFetches: nsFlattenHandles(this.coordinatedFetches),
+	    timers: this.timers
+	}));
     }
 
     publishEventAndData(scope, eventSpec, data, fid) {
@@ -366,7 +415,7 @@ Only afterward is the snapshot state restored in the new model. Next a new root 
 	this.publish(scope + fid, eventSpec);
     }
     
-    init() {  // runs when a new session is initiated OR when a new shapshot is deserialized. Thus, not the right place to start up Newspeak
+    init(options, persisted) {  // runs when a new session is initiated OR when a new shapshot is deserialized. Thus, not the right place to start up Newspeak
 
 	// If we had a prior model (every time this runs except the first)
 	// then we get rid of its subscriptions
@@ -439,6 +488,25 @@ Only afterward is the snapshot state restored in the new model. Next a new root 
 	this.timers = {};
 	this.subscribe('nstimer_', 'timer_start', this.timer_start);
 	this.subscribe('nstimer_', 'timer_stop', this.timer_stop);
+
+	// Debounce flag for persistence (see addEvent/doPersistTick).
+	this.persistPending = false;
+
+	// Seed from persisted session data (a previous island incarnation --
+	// see the persistence comment above). Runs only for a genuinely fresh
+	// island: on a snapshot restore, the restored state overwrites all of
+	// this anyway.
+	if (persisted && persisted.version === 1) {
+	    this.newspeakEvents = nsReviveHandles(persisted.newspeakEvents) || [];
+	    this.coordinatedFetches = nsReviveHandles(persisted.coordinatedFetches) || {};
+	    this.timers = persisted.timers || {};
+	    // Countdowns that were mid-flight when the previous island died:
+	    // their pending future ticks died with it, so reschedule.
+	    for (const fid in this.timers) {
+		const t = this.timers[fid];
+		if (t && t.status !== 'done' && t.interval) this.future(t.interval).timer_tick(fid, t.interval);
+	    }
+	}
     }
     // same issues with scope for these methods
     mouseDown(fid){
@@ -627,7 +695,9 @@ Only afterward is the snapshot state restored in the new model. Next a new root 
 	}
 	const interval = Math.max(250, nsOptions.data.interval || 1000);
 	const count = Math.max(1, nsOptions.data.count || 1);
-	this.timers[fid] = {remaining: count};
+	// interval is kept in the entry so a persisted-and-restored island can
+	// reschedule a mid-flight countdown (see init).
+	this.timers[fid] = {remaining: count, interval};
 	this.future(interval).timer_tick(fid, interval);
     }
     timer_tick(fid, interval){
@@ -946,7 +1016,16 @@ const password = getURIParam("pwd"); // Croquet.App.autoPassword();
 var NSCroquetModel = NewspeakCroquetModel;
 var NSCroquetView = NewspeakCroquetView;
 
-Croquet.Session.join({ apiKey, appId, name, password, model: NewspeakCroquetModel, view: NewspeakCroquetView });
+// autoSleep: false -- by default the Croquet client disconnects a tab some
+// seconds after it is hidden ("going dormant"). With --storage=none the
+// reflector DELETES an island ~10s after its last client disconnects, so two
+// users switching away from their tabs at the same time silently erased the
+// whole session history: the waking clients rejoined a FRESH session under
+// the same id, their heaps masking the loss, and every later joiner got a
+// history that starts mid-stream and can never be reconstructed (seen as
+// "new browser doesn't catch up", reflector log: "island ... deleted").
+// A persistent IDE session must hold its connection while the tab exists.
+Croquet.Session.join({ apiKey, appId, name, password, autoSleep: false, model: NewspeakCroquetModel, view: NewspeakCroquetView });
 
 
 // {{MODULE_ADDITIONS}}
