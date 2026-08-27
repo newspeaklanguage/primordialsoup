@@ -1063,6 +1063,16 @@ public class Exemplar usingPlatform: p = ( | List = p collections List. | ) (
 			[ tokenKind = #'}' ] whileFalse: [
 					elements add: parseExpression.
 					tokenKind = #'.' ifTrue: [ advanceToken ]
+						ifFalse: [
+							
+							(* The dot separates elements and may also terminate the last one, so
+	   it is optional only immediately before the closing brace. Accepting
+	   juxtaposed elements silently admitted malformed tuples that the
+	   declarative grammar rejects, and Ampleforth documents carried such
+	   source for years - invisibly, because nothing prints or validates a
+	   classBody. See the sweep in newspeak/tool/fix-classbody-syntax.py. *)
+							tokenKind = #'}' ifFalse: [ expected: '.' ]
+						]
 				].
 			tupleEnd:: tokenEnd.
 			advanceToken.
