@@ -86,7 +86,11 @@ cp out/DebugEmscriptenWASM/primordialsoup.wasm out/DebugEmscriptenWASM/croquetps
 # a plain script in <head> is executed before anything in <body> starts.
 # Everything else in the shell (vendor libraries, CodeMirror, load order) is
 # shared with primordialsoup.html and stays in sync automatically.
-CROQUET_LIB="https://cdn.jsdelivr.net/npm/@croquet/croquet@2.0.4/pub/croquet.min.js"
+# Local build of the patched Croquet fork (dev/web/croquet), staged next to the
+# page by the newspeak build. The stock CDN 2.0.4 lib lacks the NS patches
+# (serializer own-property probes; files-server URL rebasing for cross-device
+# fetch of snapshots/persistence/data), so it must not be used.
+CROQUET_LIB="croquet.min.js"
 for html in out/ReleaseEmscriptenWASM/croquetpsoup.html \
             out/DebugEmscriptenWASM/croquetpsoup.html; do
   sed -i.tmp \
