@@ -8,6 +8,7 @@ class RuntimeForPrimordialSoup packageRuntimeUsing: manifest = Object new (
 		private Actors = manifest ActorsForPrimordialSoup.
 		private PrimordialFuel = manifest PrimordialFuel.
 		private JS = manifest JSForPrimordialSoup.
+		private Host = manifest Host.
 	|
 ) (
 	public class Platform internalKernel: ik = Object new (
@@ -19,6 +20,7 @@ class RuntimeForPrimordialSoup packageRuntimeUsing: manifest = Object new (
 			public js = JS usingPlatform: self.
 		|
 	) (
+		lazy public host = Host usingPlatform: self.
 		public operatingSystem ^<String> = (
 			(* :literalmessage: primitive: 99 *)
 			

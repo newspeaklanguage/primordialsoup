@@ -15,6 +15,7 @@ class RuntimeWithMirrorsForPrimordialSoup packageRuntimeUsing: manifest = Object
 		public MetadataParsing = manifest MetadataParsing.
 		private PrimordialFuel = manifest PrimordialFuel.
 		private JS = manifest JSForPrimordialSoup.
+		private Host = manifest Host.
 	|
 ) (
 	public class Platform internalKernel: ik = Object new (
@@ -29,6 +30,7 @@ class RuntimeWithMirrorsForPrimordialSoup packageRuntimeUsing: manifest = Object
 			public js = JS usingPlatform: self.
 		|
 	) (
+		lazy public host = Host usingPlatform: self.
 		public operatingSystem ^<String> = (
 			(* :literalmessage: primitive: 99 *)
 			
