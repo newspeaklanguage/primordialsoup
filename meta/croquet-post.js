@@ -332,6 +332,23 @@ function nsSubscribe(scope, eventSpec, handler) {
     theView.subscribe(scope, eventSpec, wrapped);
 }
 
+// The inbound funnel's inverse: HopscotchForCroquet calls this when a fragment
+// lineage is disposed of (kind replacement or removal) or hands its
+// subscription to a same-kind successor. Deleting the registry entry is the
+// durable act -- replaySubscriptions resubscribes only what is here.
+// view.unsubscribe is handler-specific (croquet >= 1.1), so removing this
+// entry cannot disturb another subscription on the same scope; on a detached
+// view the deletion above suffices.
+function nsUnsubscribe(scope, eventSpec) {
+    const key = scope + eventSpec;
+    const entry = newspeakSubscriptions.get(key);
+    if (!entry) return;
+    newspeakSubscriptions.delete(key);
+    if (theView && theView.session) {
+	theView.unsubscribe(scope, eventSpec, entry.handler);
+    }
+}
+
 /* Session persistence. Our session state is the recorded event history (the
    heap is reconstructible from it), and with a standalone --storage=none
    reflector that history lived ONLY in reflector RAM: ~10s after the last
