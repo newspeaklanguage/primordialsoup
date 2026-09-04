@@ -47,6 +47,16 @@ class Host usingPlatform: p = Object new (
 	public gitAvailable ^<Boolean> = (
 		^boolFor: 'git'
 	)
+	public serviceOrigin ^<String | UndefinedObject> = (
+		(* Where this host's /_ns services live once discovery has settled: '' for
+   the page origin (the contract), a base URL for the dev fallback, nil while
+   unsettled or when no host answered. Consumers build /_ns URLs by
+   concatenation: serviceOrigin , '/_ns/fetch'. *)
+		
+		ensureProbe.
+		configAlien isNil ifTrue: [ ^nil ].
+		^serviceBase
+	)
 	public whenReady: onKnown <[:Host | Object]> = (
 		(* Runs onKnown with this host once discovery has settled - immediately if it already has. Registering triggers the probe. Before settlement the synchronous accessors answer unavailable; afterwards they answer the discovered truth. *)
 		
