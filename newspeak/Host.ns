@@ -6,7 +6,7 @@ Membership rule: a member is something the browser sandbox forbids, provided by 
 
 Written against platform js and platform actors only, so this one definition serves both runtimes. Capabilities answer Newspeak promises; JS promises are confined to the adapter methods here (the promise pilot of design section 6): boundary callbacks return nil, and no raise may escape them - a raise escaping an expat closure is memory-unsafe on the psoup bridge.
 
-Discovery is lazy - nothing is fetched at snapshot time - and fails closed: no /_ns/config, an unusable one, or a contract version we do not understand all report every capability unavailable. Until static serving folds into the front door (staging step 3), discovery falls back from the page origin to the dev front door, configured per user in localStorage ns_host_origin (default http://localhost:9999, 'off' to disable). *)
+Discovery is lazy - nothing is fetched at snapshot time - and fails closed: no /_ns/config, an unusable one, or a contract version we do not understand all report every capability unavailable. The page origin is probed first (staging step 3 folded static serving into the front door, so the page is normally served BY the front door); a dev fallback covers a page served by a separate static server, configured per user in localStorage ns_host_origin (default http://localhost:8080, 'off' to disable). *)
 class Host usingPlatform: p = Object new (
 	|
 		private js = p js.
@@ -119,14 +119,19 @@ class Host usingPlatform: p = Object new (
 			]
 	)
 	devFallbackBase ^<String | UndefinedObject> = (
-		(* Where to look for /_ns/config when the page origin has no front door - the dev split that staging step 3 retires. Same per-user localStorage pattern as the AI keys, so nothing is baked into the image. *)
+		(* Where to look for /_ns/config when the page origin itself has no front
+   door - now rare, since staging step 3 folded static serving into the front
+   door, so the page origin usually IS the front door and the primary probe
+   succeeds. Kept for the case of a page served by a separate static server in
+   dev; defaults to the front door's usual port. Per-user override via
+   localStorage ns_host_origin ('off' to disable), so nothing is baked in. *)
 		
 		| raw |
 		raw:: [ js localStorage getItem: 'ns_host_origin' ] on: Exception
 			do: [:e | nil ].
-		raw isNil ifTrue: [ ^'http://localhost:9999' ].
+		raw isNil ifTrue: [ ^'http://localhost:8080' ].
 		raw = 'off' ifTrue: [ ^nil ].
-		(raw isKindOfString and: [ raw isEmpty ]) ifTrue: [ ^'http://localhost:9999' ].
+		(raw isKindOfString and: [ raw isEmpty ]) ifTrue: [ ^'http://localhost:8080' ].
 		^raw
 	)
 	ensureProbe = (
