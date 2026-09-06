@@ -52,6 +52,16 @@ Expat mappings:
 			rawPerformSet.
 			^rawPop
 		)
+		public propertyAt: key = (
+			(* Platform-portable JS property read. On this platform every JS value is an Alien and at: already has property semantics, so this is an alias. It exists because on NS2JS a Uint8Array crosses the boundary as a Newspeak ByteArray, whose at: is 1-based element access - so at: cannot be used portably for property access on values that may be typed arrays. Code that means "read a JS property" should say so with this selector. *)
+			
+			^at: key
+		)
+		public propertyAt: key put: value = (
+			(* Platform-portable JS property write; see propertyAt:. *)
+			
+			^at: key put: value
+		)
 		doesNotUnderstand: message = (
 			| jsSelector |
 			0 = message arguments size ifTrue: [
