@@ -83,6 +83,41 @@ class Host usingPlatform: p = Object new (
 			] on: Exception do: [:e | breakQuietly: r with: (describeJS: e) ].
 			^r promise
 		)
+		public performText: request <String> via: op <[:[:String | Object] :[:String | Object] | Object]> canPerformHere: able <Boolean> ^<Promise> = (
+			(* As performText:via:, for a caller that already knows whether the
+		   exchange can be carried out from THIS machine.
+
+		   The agent bus needs the distinction: an agent is a process listening on
+		   one participant's front door, so in a synchronized session only some
+		   participants can reach it. A client that cannot must not be the one
+		   elected to perform the exchange - it would perform it into a bus the
+		   agent is not on - but it still needs the reply, so it waits for a
+		   participant that can. Here there is no other participant, so a caller
+		   that cannot perform the exchange is told so instead of waiting. *)
+			
+			| r |
+			able ifTrue: [ ^performText: request via: op ].
+			r:: Resolver new.
+			breakQuietly: r
+				with: 'This exchange cannot be carried out from here, and this session has no other participant that could carry it out.'.
+			^r promise
+		)
+		public shareText: request <String> via: op <[:[:String | Object] :[:String | Object] | Object]> ^<Promise> = (
+			(* As performText:via:, for a computation whose EFFECTS must happen on
+		   every participant but whose RESULT the session must agree on.
+
+		   An AI tool call is the case in hand. Applying a changeset or evaluating
+		   an expression has to change every participant's image, so every client
+		   runs it; but the text that goes back to the model, and so into the shared
+		   conversation, has to be one text - and a tool may legitimately read
+		   things the replicated image does not carry (the clock, the browser, the
+		   network, the synchronization machinery itself), so two clients' texts
+		   are not guaranteed to agree. Here there is one participant: run op and
+		   answer its text. On the Croquet host every client runs op, and the text
+		   the elected client produced is recorded and answered to all. *)
+			
+			^performText: request via: op
+		)
 	) : ()
 	lazy private global = js global.
 	lazy public fetcher = Fetcher new.

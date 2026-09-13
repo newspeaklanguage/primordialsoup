@@ -317,6 +317,23 @@ async function nsResolvePayload(e) {
 // it. The RAW handler is recorded too: replayEvents must invoke handlers
 // inline from its own chain thunks (see there), where calling the wrapped form
 // would re-enqueue and decouple lookup order from execution order.
+// Replay pacing. Live, consecutive events are separated by real time, so
+// everything an event's handler sets in motion asynchronously -- the promise
+// hops between a chat's Send and its coordinated completion request, a
+// render's deferred content -- has run before the next event arrives. The
+// replay chain is promise-driven, so without a pause those hops interleave
+// with the dispatch of the FOLLOWING recorded events: a request went out after
+// the recorded answer to it had already been dispatched ("holding early
+// answer"), the UI passed through its states in a different order than the
+// original, and the fragment ordinals drifted -- observed as orphaned
+// keystrokes for nscodemirror_/21 right after a held answer (2026-09-13).
+// One macrotask drains every promise continuation the handler spawned; one
+// animation frame lets deferred content take its first step. ~17ms per event.
+function nsReplayPace() {
+    return new Promise(r => setTimeout(r, 0)).then(() => new Promise(r =>
+	(typeof requestAnimationFrame === 'function') ? requestAnimationFrame(() => r()) : setTimeout(r, 16)));
+}
+
 function nsSubscribe(scope, eventSpec, handler) {
     const wrapped = e => {
 	nsDispatchChain = nsDispatchChain.then(async () => {
@@ -819,6 +836,9 @@ class NewspeakCroquetView extends Croquet.View {
 		} catch (err) {
 		    console.error('Croquet replay of "' + k + '" failed; event skipped:', err);
 		}
+		// Let this event's asynchronous fallout settle before the next
+		// recorded event is dispatched. See nsReplayPace.
+		await nsReplayPace();
 	    });
 	}
     }
