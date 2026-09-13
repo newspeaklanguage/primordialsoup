@@ -317,6 +317,91 @@ async function nsResolvePayload(e) {
 // it. The RAW handler is recorded too: replayEvents must invoke handlers
 // inline from its own chain thunks (see there), where calling the wrapped form
 // would re-enqueue and decouple lookup order from execution order.
+// Coordinated-fetch answers that arrived before anything was listening for
+// them. A subscription for such a key is created when the APPLICATION issues
+// that request, and it legitimately can come later than the recorded answer:
+// the construct that issues it may sit in deferred content, which realizes
+// across animation frames. Waiting for it inside the dispatch chain is not an
+// option -- the chain is what delivers the events that drive the realization,
+// so waiting there starves the thing being waited for, and one unmatched
+// answer stalls every answer behind it. So the answer is kept here instead,
+// and handed over the moment its subscriber registers. Keyed exactly as
+// newspeakSubscriptions is, and cleared on delivery: each answer is consumed
+// once.
+const nsPendingCoordAnswers = new Map();
+
+// ---- Fragment-id minting ledger (diagnostic) --------------------------------
+//
+// Every synchronized fragment takes its Croquet event address from a per-type
+// counter incremented at construction, so clients agree on which widget an
+// event refers to ONLY if they construct fragments in the same order and
+// number (CROQUET_SCOPED_FRAGMENT_IDS_2026-08-18.md). A client that builds one
+// extra widget skews every later id on that counter, and the failure surfaces
+// much later and somewhere else -- as "no subscriber for nsbutton_/533", or as
+// a click landing on the wrong widget.
+//
+// This records the minting sequence so two clients can be diffed directly: the
+// first index at which their ledgers disagree IS the divergence, and the entry
+// names the type and the presenter that was being built. Without it the only
+// evidence is a consequence hundreds of events downstream, which is how this
+// class of bug has been debugged so far -- badly.
+//
+// OFF by default. Recording costs a bridge crossing per fragment construction,
+// and an IDE builds thousands per render, so this is not something to impose on
+// every build. Off costs nothing at all: HopscotchForCroquet reads the flag once
+// into a lazy slot, so a disabled ledger makes no crossings.
+//
+// Because it is read once, before the first fragment exists, it cannot be turned
+// on from the console mid-session -- enable it and reload:
+//     localStorage.setItem('ns_mint_ledger', 'on')
+// or put &mintLedger=on in the page URL (what the probes do).
+var nsMintLedgerOn = (function () {
+    try { if (/[?&]mintLedger=on\b/.test(location.search)) return true } catch (e) {}
+    try { return localStorage.getItem('ns_mint_ledger') === 'on' } catch (e) { return false }
+})();
+const NS_LEDGER_CAP = 100000;
+const nsIdLedger = [];
+const nsMintContext = [];
+let nsLedgerTruncated = false;
+
+function nsPushMintContext(label) { nsMintContext.push(label); }
+function nsPopMintContext(ignored) { nsMintContext.pop(); }
+
+function nsRecordMint(type, ordinal, scopePath) {
+    if (nsIdLedger.length >= NS_LEDGER_CAP) { nsLedgerTruncated = true; return }
+    nsIdLedger.push({t: type, o: ordinal, s: scopePath || '',
+                     c: nsMintContext.length ? nsMintContext[nsMintContext.length - 1] : ''});
+}
+
+// Diffing API. A long session mints tens of thousands of ids, far too many to
+// ship over CDP in one value, so: compare block hashes to find the first
+// differing block, then slice just that block.
+function nsLedgerCount() { return nsIdLedger.length }
+
+function nsLedgerBlockHashes(step) {
+    const n = step || 500, out = [];
+    let h = 0x811c9dc5;
+    for (let i = 0; i < nsIdLedger.length; i++) {
+        const e = nsIdLedger[i], str = e.t + '/' + e.o + '/' + e.s + '/' + e.c;
+        for (let j = 0; j < str.length; j++) { h ^= str.charCodeAt(j); h = (h * 0x01000193) >>> 0 }
+        if ((i + 1) % n === 0) out.push({i: i + 1, h: h});
+    }
+    out.push({i: nsIdLedger.length, h: h});
+    return out;
+}
+
+function nsLedgerSlice(from, to) { return nsIdLedger.slice(from, to) }
+
+// Per-type totals -- the cheap top-level check, and what a live client can be
+// asked for without shipping anything large.
+function nsLedgerTotals() {
+    const m = {};
+    for (const e of nsIdLedger) m[e.t] = (m[e.t] || 0) + 1;
+    return {counts: m, total: nsIdLedger.length, truncated: nsLedgerTruncated};
+}
+
+function nsLedgerReset() { nsIdLedger.length = 0; nsLedgerTruncated = false }
+
 // Replay pacing. Live, consecutive events are separated by real time, so
 // everything an event's handler sets in motion asynchronously -- the promise
 // hops between a chat's Send and its coordinated completion request, a
@@ -344,9 +429,24 @@ function nsSubscribe(scope, eventSpec, handler) {
 	    }
 	});
     };
-    newspeakSubscriptions.set(scope + eventSpec,
+    const key = scope + eventSpec;
+    newspeakSubscriptions.set(key,
 	{scope: scope, eventSpec: eventSpec, handler: wrapped, raw: handler});
     theView.subscribe(scope, eventSpec, wrapped);
+    // An answer that outran this subscription is waiting; deliver it now, in
+    // the chain, so it keeps its place relative to everything after it.
+    if (nsPendingCoordAnswers.has(key)) {
+	const held = nsPendingCoordAnswers.get(key);
+	nsPendingCoordAnswers.delete(key);
+	console.info('Croquet: delivering held answer for "' + key + '"');
+	nsDispatchChain = nsDispatchChain.then(async () => {
+	    try {
+		handler(await nsResolvePayload(held));
+	    } catch (err) {
+		console.error('Newspeak deferred dispatch (' + scope + ' ' + eventSpec + ') failed:', err);
+	    }
+	});
+    }
 }
 
 // The inbound funnel's inverse: HopscotchForCroquet calls this when a fragment
@@ -508,6 +608,7 @@ Only afterward is the snapshot state restored in the new model. Next a new root 
 	// here is the fresh-session default; a snapshot restore overwrites it.
 	this.coordinatedFetches = {};
 	this.subscribe('nscoordfetch_', 'coordinatedFetch_request', this.coordinatedFetch_request);
+	this.subscribe('nscoordfetch_', 'coordinatedFetch_await', this.coordinatedFetch_await);
 	this.subscribe('nscoordfetch_', 'coordinatedFetch_loaded', this.coordinatedFetch_loaded);
 	this.subscribe('nscoordfetch_', 'coordinatedFetch_failed', this.coordinatedFetch_failed);
 
@@ -698,6 +799,31 @@ Only afterward is the snapshot state restored in the new model. Next a new root 
 	}
 	// status 'fetching': an answer is already on its way; ignore.
     }
+    // A client that needs this answer but CANNOT produce it -- the agent bus is
+    // the case: an agent is a process listening on one participant's machine,
+    // so a client elsewhere must consume the reply without ever being elected
+    // to fetch it. Unlike a request this never elects and never creates an
+    // entry; it only asks for an answer that already exists, because a client
+    // that starts waiting after the answer was broadcast would otherwise wait
+    // forever (the broadcast reaches whoever is subscribed at that instant,
+    // and the replay stash covers only clients replaying history).
+    coordinatedFetch_await(nsOptions){
+	const name = nsOptions.fid;
+	const entry = this.coordinatedFetches.hasOwnProperty(name) ? this.coordinatedFetches[name] : null;
+	if (entry && entry.status === 'loaded')
+	    // NOT publishEventAndData: an await must add NOTHING to newspeakEvents.
+	    // A late requester's answer is recorded (coordinatedFetch_request), and
+	    // has to be, because its Newspeak handler is subscribed through
+	    // subscribeFragment: and so advances the replay cursor. An await comes
+	    // from a client that may itself be REPLAYING -- a joiner catching up
+	    // through a bus chat asks here -- and appending to the history a client
+	    // is walking skews that client's cursor and orphans events for
+	    // everyone. So the answer rides its own unrecorded event, subscribed
+	    // uncounted, and is private to whoever asked.
+	    this.publish('nscoordfetch_' + name, 'model_coordinatedFetch_awaited', entry.handle);
+	// No entry, or still fetching: the loaded broadcast is yet to come and
+	// this client is already subscribed for it.
+    }
     coordinatedFetch_loaded(nsOptions){
 	this.coordinatedFetches[nsOptions.fid] = {status: 'loaded', handle: nsOptions.data};
 	this.publishEventAndData('nscoordfetch_', 'model_coordinatedFetch_loaded', nsOptions.data, nsOptions.fid);
@@ -808,6 +934,39 @@ class NewspeakCroquetView extends Croquet.View {
 	    // realizes across animation frames afterwards. A lookup at enqueue
 	    // time -- or a synchronous loop, as this originally was -- runs
 	    // before any of that construction and finds nothing.
+	    // How long it is worth waiting for a subscriber depends on what kind
+	    // of thing subscribes. A FRAGMENT's subscription appears when the
+	    // fragment realizes, which trails the event by animation frames on a
+	    // big page -- hence the wait. A coordinated-fetch scope has no
+	    // fragment: it exists only if the application issued that request, so
+	    // if it is absent now, nothing that happens later in this replay will
+	    // conjure it, and waiting cannot help.
+	    //
+	    // Worse, waiting actively harms: the wait BLOCKS this chain, and the
+	    // chain is what dispatches the events that would make the application
+	    // issue its next request. One unmatched answer therefore starves the
+	    // subscriptions for every answer behind it, turning a single mismatch
+	    // into a cascade -- observed as nine 15s stalls in a row, two minutes
+	    // of dead catch-up, and finally a client disconnected for overflowing
+	    // its send-rate buffer while stalled.
+	    //
+	    // A missing coordinated answer is in any case benign: it is bytes this
+	    // client never asked for.
+	    //
+	    // But "absent now" and "never coming" are not the same thing. A
+	    // completion's request is issued by the CONTINUATION of the previous
+	    // answer -- the tool round: answer arrives, the tool runs, its result
+	    // is sent -- and that continuation is asynchronous, so at the moment
+	    // the next recorded answer comes up in this loop the request for it
+	    // may be a few promise hops away. Holding it and moving on dispatched
+	    // the user's next keystrokes and Send BEFORE that round had closed, so
+	    // the joiner sent a request whose history lacked the previous reply, a
+	    // body nobody recorded, and got itself elected to fetch it (2026-09-13,
+	    // croquet-probes/setup-latejoin-probe.js: 4-message body vs the
+	    // original's 5). So: wait for the requester, bounded, THEN hold. The
+	    // bound only bites for an answer this client will truly never ask for,
+	    // which on a correct application is a bug in its own right.
+	    const waitBudget = e.scope === 'nscoordfetch_' ? 10000 : 15000;
 	    nsDispatchChain = nsDispatchChain.then(async () => {
 		// Wait for the subscriber to appear while deferred content
 		// drains (one action per animation frame; big pages take
@@ -816,12 +975,20 @@ class NewspeakCroquetView extends Croquet.View {
 		// where slow catch-up beats wrong catch-up.
 		let s = newspeakSubscriptions.get(k);
 		let waited = 0;
-		while (!s && waited < 15000) {
+		while (!s && waited < waitBudget) {
 		    await new Promise(r => setTimeout(r, 100));
 		    waited += 100;
 		    s = newspeakSubscriptions.get(k);
 		}
 		if (!s) {
+		    if (e.scope === 'nscoordfetch_') {
+			// Not lost, just early: held for whoever asks for this
+			// resource later in the replay. See nsPendingCoordAnswers.
+			nsPendingCoordAnswers.set(k, e.data);
+			console.info('Croquet replay: holding early answer for "' + k +
+			    '" (event ' + n + ' of ' + total + ') until its requester subscribes');
+			return;
+		    }
 		    console.warn('Croquet replay: no subscriber for key "' + k +
 			'" (scope=' + e.scope + ' fid=' + e.fid + ' event=' + e.eventSpec +
 			') after ' + waited + 'ms, event ' + n + ' of ' + total + ' - skipped');
