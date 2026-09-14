@@ -603,9 +603,10 @@ Only afterward is the snapshot state restored in the new model. Next a new root 
 	// Coordinated once-per-session fetches (see HopscotchForCroquet.ns
 	// coordinatedFetch:via:ifSuccess:ifFailure:; Documents uses keys like
 	// 'document:<name>' for transclusions). Maps fetch key ->
-	// {status: 'fetching'} or {status: 'loaded', handle}. A plain object, so
-	// it snapshots without custom serializers. Like newspeakEvents, the reset
-	// here is the fresh-session default; a snapshot restore overwrites it.
+	// {status: 'fetching'}, {status: 'loaded', handle} or
+	// {status: 'failed', reason}. A plain object, so it snapshots without
+	// custom serializers. Like newspeakEvents, the reset here is the
+	// fresh-session default; a snapshot restore overwrites it.
 	this.coordinatedFetches = {};
 	this.subscribe('nscoordfetch_', 'coordinatedFetch_request', this.coordinatedFetch_request);
 	this.subscribe('nscoordfetch_', 'coordinatedFetch_await', this.coordinatedFetch_await);
@@ -782,12 +783,21 @@ Only afterward is the snapshot state restored in the new model. Next a new root 
     // Coordinated once-per-session fetches. Every client wanting the bytes
     // for a key publishes a request carrying its view id; the FIRST request
     // elects that view as the fetcher (reflector ordering is the election).
-    // Only loaded answers are recorded in newspeakEvents -- including repeat
-    // answers to late requests, so the per-client processed-event counting
-    // stays exact -- ensuring every client, and every late joiner replaying
-    // history, consumes the same stored bytes. The election and failure
-    // broadcasts are NOT recorded, and their Newspeak-side handlers are
-    // subscribed uncounted.
+    // Answers -- loaded AND failed -- are recorded in newspeakEvents,
+    // including repeat answers to late requests, so the per-client
+    // processed-event counting stays exact, ensuring every client, and every
+    // late joiner replaying history, consumes the same stored bytes or the
+    // same failure. Only the election broadcast is NOT recorded (its
+    // Newspeak-side handler is subscribed uncounted).
+    //
+    // A failure is an ANSWER, not a vacancy. Until 2026-09-13 a failure
+    // deleted the entry "so a retry can re-elect"; a late joiner replaying
+    // the request then found no entry, was elected, and fetched afresh --
+    // a provider call the original never made, a reply the original never
+    // saw, and a divergent history from there on (croquet-probes/
+    // setup-latejoin-probe.js FAIL_TURN=1). A retry is a NEW request under
+    // a NEW key -- every caller mints one per attempt (HostForCroquet
+    // sharingKeyFor:/performKeyFor:) -- so nothing needs the old key back.
     coordinatedFetch_request(nsOptions){
 	const name = nsOptions.fid;
 	const entry = this.coordinatedFetches.hasOwnProperty(name) ? this.coordinatedFetches[name] : null;
@@ -796,6 +806,8 @@ Only afterward is the snapshot state restored in the new model. Next a new root 
 	    this.publish('nscoordfetch_' + name, 'model_coordinatedFetch_fetch', nsOptions.data);
 	} else if (entry.status === 'loaded') {
 	    this.publishEventAndData('nscoordfetch_', 'model_coordinatedFetch_loaded', entry.handle, name);
+	} else if (entry.status === 'failed') {
+	    this.publishEventAndData('nscoordfetch_', 'model_coordinatedFetch_failed', entry.reason, name);
 	}
 	// status 'fetching': an answer is already on its way; ignore.
     }
@@ -821,16 +833,22 @@ Only afterward is the snapshot state restored in the new model. Next a new root 
 	    // everyone. So the answer rides its own unrecorded event, subscribed
 	    // uncounted, and is private to whoever asked.
 	    this.publish('nscoordfetch_' + name, 'model_coordinatedFetch_awaited', entry.handle);
-	// No entry, or still fetching: the loaded broadcast is yet to come and
-	// this client is already subscribed for it.
+	else if (entry && entry.status === 'failed')
+	    // The failure, off the record for the same reason.
+	    this.publish('nscoordfetch_' + name, 'model_coordinatedFetch_awaitedFailure', entry.reason);
+	// No entry, or still fetching: the answer is yet to come and this
+	// client is already subscribed for it.
     }
     coordinatedFetch_loaded(nsOptions){
 	this.coordinatedFetches[nsOptions.fid] = {status: 'loaded', handle: nsOptions.data};
 	this.publishEventAndData('nscoordfetch_', 'model_coordinatedFetch_loaded', nsOptions.data, nsOptions.fid);
     }
     coordinatedFetch_failed(nsOptions){
-	delete this.coordinatedFetches[nsOptions.fid];
-	this.publish('nscoordfetch_' + nsOptions.fid, 'model_coordinatedFetch_failed', nsOptions.data);
+	// Recorded, like a loaded answer: a replaying client must meet the
+	// failure where the original did, enter the same error state, and
+	// replay the user's Retry -- not be elected to fetch in its place.
+	this.coordinatedFetches[nsOptions.fid] = {status: 'failed', reason: nsOptions.data};
+	this.publishEventAndData('nscoordfetch_', 'model_coordinatedFetch_failed', nsOptions.data, nsOptions.fid);
     }
     // Synchronized timers. Every client publishes start on realizing a timer
     // fragment; only the first registers (idempotent start). The count rides
