@@ -436,9 +436,38 @@ function nsLedgerReset() { nsIdLedger.length = 0; nsLedgerTruncated = false }
 // keystrokes for nscodemirror_/21 right after a held answer (2026-09-13).
 // One macrotask drains every promise continuation the handler spawned; one
 // animation frame lets deferred content take its first step. ~17ms per event.
+//
+// A page that is not being painted - a background tab, a minimized or covered
+// window, one on another desktop - gets NO animation frames, and its timers
+// are throttled to one a second (one a minute after five minutes). A joiner
+// in that state never got past its first recorded event (2026-09-17). There
+// is nothing to pace for there either: Hopscotch drains a hidden page's
+// deferred content whole, in a promise turn right after the handler
+// (HopscotchForHTML5>>nextFrameDo:ifNoFrame:). So a hidden page takes one
+// macrotask, from a MessageChannel, which is not throttled. A painted page
+// races its frame against a timer, in case it is hidden while it waits.
+function nsMacrotask() {
+    if (typeof MessageChannel !== 'function') return new Promise(r => setTimeout(r, 0));
+    return new Promise(r => {
+	const c = new MessageChannel();
+	c.port1.onmessage = () => { c.port1.close(); r(); };
+	c.port2.postMessage(0);
+    });
+}
+
+function nsPageIsPainted() {
+    return typeof requestAnimationFrame === 'function' &&
+	!(typeof document !== 'undefined' && document.hidden);
+}
+
 function nsReplayPace() {
-    return new Promise(r => setTimeout(r, 0)).then(() => new Promise(r =>
-	(typeof requestAnimationFrame === 'function') ? requestAnimationFrame(() => r()) : setTimeout(r, 16)));
+    if (!nsPageIsPainted()) return nsMacrotask();
+    return new Promise(r => setTimeout(r, 0)).then(() => new Promise(r => {
+	let settled = false;
+	const once = () => { if (!settled) { settled = true; r(); } };
+	requestAnimationFrame(once);
+	setTimeout(once, 250);
+    }));
 }
 
 /* Divergence alarm.
