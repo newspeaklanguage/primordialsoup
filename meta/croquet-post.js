@@ -1,6 +1,15 @@
+// <psoup-only> the JS deploy gets its own header (newspeak tool/croquet-glue-js/header.js)
 /* Croquet integration for the Newspeak runtime, linked in via --post-js.
    Extracted verbatim from the working hand-maintained croquetpsoup.js (the tail
    following the emscripten glue), which was the only copy that ever ran. */
+// </psoup-only>
+/* THIS FILE IS CANONICAL for both platforms. The copy that a Croquet JS deploy
+   ships (DeploymentManager.ns, JSPackager>>croquetSupportScript) is GENERATED
+   from it by the newspeak repository's tool/mirror-croquet-glue.py - never edit
+   that copy by hand. Lines between <psoup-only> and </psoup-only> are dropped
+   there; everything from <startup> to the end of the file is replaced by
+   tool/croquet-glue-js/startup.js. After editing this file, run the script
+   (its --check mode reports a stale copy). */
 var theModel;
 var theView;
 var localViewId;
@@ -93,12 +102,44 @@ function nsCodeMirrorChange(change) {
 	   }
 }
 
+/* A selection position always goes out with a NUMERIC column. CodeMirror lets a
+   column be left out to mean "end of line" (its own selectAll builds
+   Pos(lastLine) with no ch), and an undefined value does not survive
+   publication: replaceUndefined turns it into {}. In practice CodeMirror
+   reports clipped positions to beforeSelectionChange, so this is a guard, not
+   a fix for anything observed: a column past the end is clipped to the end of
+   the line, and IS a number. */
+const NS_END_OF_LINE = 1000000000;
+function nsSelectionPos(p) {
+    return {line: p.line, ch: (typeof p.ch === 'number') ? p.ch : NS_END_OF_LINE};
+}
+
 function nsCodeMirrorSelectionChange(change) {
-    var from = change.ranges[0].anchor;
-    var to = change.ranges[0].head;
-    return {anchor: {line: from.line, ch: from.ch},
-	    head: {line: to.line, ch: to.ch}
-	   }
+    return {anchor: nsSelectionPos(change.ranges[0].anchor),
+	    head: nsSelectionPos(change.ranges[0].head)};
+}
+
+/* CodeMirror's own selectAll command - Cmd-A, and execCommand('selectAll') -
+   sets the selection with NO origin, so to the publishing hook
+   (HopscotchForCroquet CodeMirrorFragment>>respondToBeforeSelectionChange:) it
+   looked like a programmatic operation and stayed on the client that pressed
+   it, while a mouse or shift-arrow selection ('*mouse', '+move') is published.
+   A following synchronized Evaluate Selection then ran on that client alone
+   (found by the determinism probe, 2026-09-17). The command is replaced, once,
+   by one that tags its selection '*selectAll' and gives its end an explicit
+   column (see nsSelectionPos). Done here, in JavaScript, so that both
+   platforms run the same code. Answers whether CodeMirror was there to patch. */
+function nsPatchSelectAll() {
+    if (typeof CodeMirror === 'undefined' || !CodeMirror.commands) return false;
+    if (!CodeMirror.commands.__nsSelectAllPublishes) {
+	CodeMirror.commands.selectAll = function (cm) {
+	    const last = cm.lastLine();
+	    cm.setSelection(CodeMirror.Pos(cm.firstLine(), 0), CodeMirror.Pos(last, cm.getLine(last).length),
+			    {origin: '*selectAll', scroll: false});
+	};
+	CodeMirror.commands.__nsSelectAllPublishes = true;
+    }
+    return true;
 }
 
 function nsPopstateData(event){
@@ -1099,12 +1140,15 @@ class NewspeakCroquetView extends Croquet.View {
 	this.subscribe(this.sessionId, 'nsEventRecorded', nsCheckDelivery);
         replaySubscriptions();
 	this.replay();   	
+// <psoup-only> Emscripten run dependency; the JS deploy gates on the Session.join promise instead
 	if (croquetDepActive) {
 	    removeRunDependency(croquetDepId);
 	    croquetDepActive = false;
         }
+// </psoup-only>
     }
 
+// <psoup-only> no JS deploy predates the large-payload detour
     // Newspeak subscriptions arrive via nsSubscribe (above), which records the
     // wrapped handler in newspeakSubscriptions and subscribes it. This method
     // remains ONLY for compatibility with vfuels older than the large-payload
@@ -1115,6 +1159,7 @@ class NewspeakCroquetView extends Croquet.View {
     addSubscription(scope, eventSpec, handler) {
 	newspeakSubscriptions.set(scope + eventSpec, {scope: scope, eventSpec: eventSpec, handler: handler});
     }
+// </psoup-only>
 
     storedData() {return this.session.data}
     
@@ -1314,6 +1359,7 @@ function getURIParam(paramName) {
 }
 
 
+// <psoup-only> the generated JS program defines the download helpers itself
 async function saveBlobWithSaveFilePicker(fileName, fileBlob) {
     let fileHandle;
     let writableStream;
@@ -1412,7 +1458,9 @@ async function safeDownloadBlob(fileName, fileBlob) {
         return { success: true, method: 'Standard', message: 'Standard download started (may be renamed by browser).' };
     }
 }
+// </psoup-only>
 
+// <startup> replaced wholesale in the JS deploy (tool/croquet-glue-js/startup.js)
 const name = getURIParam("sessionId"); 
 // or else Croquet.App.autoSession();
 const apiKey = getURIParam("apiKey");// originates from croquet.io/keys
