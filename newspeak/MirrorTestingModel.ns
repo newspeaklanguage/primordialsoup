@@ -30,11 +30,11 @@ class MirrorTestingModel new = Object new (
 		public class PublicNestedClass new = Object new (
 		) (
 		) : ()
-		
-		(* lazy public lazyPublicSlot = 100 + defaultSlot.
+		>>> binaryMethod = (
+			(* lazy public lazyPublicSlot = 100 + defaultSlot.
   lazy private lazyPrivateSlot = 200*privateSlot.
   lazy lazyProtectedSlot ::= 300. *)
-		>>> binaryMethod = (
+			
 		)
 		defaultMethod = (
 		)

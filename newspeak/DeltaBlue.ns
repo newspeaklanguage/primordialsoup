@@ -409,7 +409,7 @@ class DeltaBlue usingPlatform: p = Object new (
 			public removeConstraint: c <Constraint> = (
 				(* Remove all traces of c from this variable. *)
 				
-				constraints remove: c ifAbsent: [ ].
+				constraints remove: c ifAbsent: [].
 				determinedBy = c ifTrue: [ determinedBy: nil ]
 			)
 		) : ()

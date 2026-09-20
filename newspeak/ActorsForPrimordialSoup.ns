@@ -282,6 +282,20 @@ Note that all slots contain objects that belong to the actor which performed the
 			state = #resolved ifTrue: [ ^resolution immediateSend: message ].
 			^Error signal: 'Cannot immediate-send to an eventual ref: ' , message selector
 		)
+		public internalResolve: internalRef <InternalRef> = (
+			state = #unresolved ifFalse: [ ^Error signal: 'Already resolved' ].
+			internalRef isKindOfInternalRef ifFalse: [ halt ].
+			state:: #resolving.
+			internalRef checkCycle ifTrue: [
+					resolution:: InternalBrokenRef problem: (Error new messageText: 'Cyclic resolution')
+				]
+				ifFalse: [ resolution:: internalRef ].
+			state:: #resolved.
+			nil = reactors ifFalse: [
+					reactors do: [:reactor | resolution addReactor: reactor ].
+					reactors:: nil
+				]
+		)
 		public whenFulfilled: onValue whenBroken: onError ^<Ref> = (
 			| localPromise |
 			state = #resolved ifTrue: [
@@ -296,20 +310,6 @@ Note that all slots contain objects that belong to the actor which performed the
 		public wrapFor: targetActor = (
 			state = #resolved ifTrue: [ ^resolution wrapFor: targetActor ].
 			^(InternalRemotePromise target: self targetsActor: currentActor) externalRef
-		)
-		public internalResolve: internalRef <InternalRef> = (
-			state = #unresolved ifFalse: [ ^Error signal: 'Already resolved' ].
-			internalRef isKindOfInternalRef ifFalse: [ halt ].
-			state:: #resolving.
-			internalRef checkCycle ifTrue: [
-					resolution:: InternalBrokenRef problem: (Error new messageText: 'Cyclic resolution')
-				]
-				ifFalse: [ resolution:: internalRef ].
-			state:: #resolved.
-			nil = reactors ifFalse: [
-					reactors do: [:reactor | resolution addReactor: reactor ].
-					reactors:: nil
-				]
 		)
 	) : ()
 	class InternalNearRef wrapping: t = InternalRef new (
@@ -361,14 +361,14 @@ Note that all slots contain objects that belong to the actor which performed the
 		public immediateSend: message <Message> ^<Object> = (
 			subclassResponsibility
 		)
+		public isKindOfInternalRef ^<Boolean> = (
+			^true
+		)
 		public whenFulfilled: onValue whenBroken: onError ^<Ref> = (
 			subclassResponsibility
 		)
 		public wrapFor: targetActor = (
 			subclassResponsibility
-		)
-		public isKindOfInternalRef ^<Boolean> = (
-			^true
 		)
 	) : ()
 	class InternalRemotePromise target: t targetsActor: ta = InternalRef new (
@@ -414,6 +414,16 @@ Note that all slots contain objects that belong to the actor which performed the
 			state = #resolved ifTrue: [ ^resolution immediateSend: message ].
 			^Error signal: 'Cannot immediate-send to an eventual ref: ' , message selector
 		)
+		public internalResolve: internalRef <InternalRef> = (
+			state = #unresolved ifFalse: [ ^Error signal: 'Already resolved' ].
+			internalRef isKindOfInternalRef ifFalse: [ halt ].
+			state:: #resolving.
+			internalRef checkCycle ifTrue: [
+					resolution:: InternalBrokenRef problem: (Error new messageText: 'Cyclic resolution')
+				]
+				ifFalse: [ resolution:: internalRef ].
+			state:: #resolved
+		)
 		public redirectFrom: sourceActor to: destinationActor resolving: resolver = (
 			| redirector |
 			destinationActor = targetsActor ifTrue: [
@@ -450,16 +460,6 @@ Note that all slots contain objects that belong to the actor which performed the
 			state = #resolved ifTrue: [ ^resolution wrapFor: targetActor ].
 			targetActor = targetsActor ifTrue: [ ^target externalRef ].
 			^(InternalRemotePromise target: target targetsActor: targetsActor) externalRef
-		)
-		public internalResolve: internalRef <InternalRef> = (
-			state = #unresolved ifFalse: [ ^Error signal: 'Already resolved' ].
-			internalRef isKindOfInternalRef ifFalse: [ halt ].
-			state:: #resolving.
-			internalRef checkCycle ifTrue: [
-					resolution:: InternalBrokenRef problem: (Error new messageText: 'Cyclic resolution')
-				]
-				ifFalse: [ resolution:: internalRef ].
-			state:: #resolved
 		)
 	) : ()
 	class InternalTimer new = Object new (
@@ -523,6 +523,37 @@ Note that all slots contain objects that belong to the actor which performed the
 			platform ::= p.
 		|
 	) (
+		private dispatchHandle: handle status: status signals: signals count: count = (
+			(* On of two entry points into Newspeak-land. This one handles callbacks to this VM. *)
+			
+			| handler |
+			
+			(* locate the callback *)
+			handler:: handles at: handle.
+			nil = handler ifTrue: [
+					'Signal for ' , handle printString , ' with no handler' out
+				]
+				ifFalse: 
+				(* Enqueue the callback *)
+				[
+					currentActor enqueueReceiver: handler
+						selector: #value:value:
+						arguments: {status. signals. }
+						resolver: nil
+				].
+			
+			(* Process the VM's message queue and go back to the VM *)
+			finish: drainQueue
+		)
+		private dispatchMessage: message port: port = (
+			(* On of two entry points into Newspeak-land. This one handles messages sent to this VM. *)
+			
+			nil = message ifFalse: [
+					nil = port ifTrue: [ enqueueStartupMessage: message ]
+						ifFalse: [ enqueuePortMessage: message port: port ]
+				].
+			finish: drainQueue
+		)
 		public drainQueue = (
 			timerHeap drainQueue.
 			[ pendingActors isEmpty ] whileFalse: [ pendingActors removeLast drainQueue ].
@@ -560,37 +591,6 @@ Note that all slots contain objects that belong to the actor which performed the
 			(* :literalmessage: primitive: 107 *)
 			
 			halt
-		)
-		private dispatchMessage: message port: port = (
-			(* On of two entry points into Newspeak-land. This one handles messages sent to this VM. *)
-			
-			nil = message ifFalse: [
-					nil = port ifTrue: [ enqueueStartupMessage: message ]
-						ifFalse: [ enqueuePortMessage: message port: port ]
-				].
-			finish: drainQueue
-		)
-		private dispatchHandle: handle status: status signals: signals count: count = (
-			(* On of two entry points into Newspeak-land. This one handles callbacks to this VM. *)
-			
-			| handler |
-			
-			(* locate the callback *)
-			handler:: handles at: handle.
-			nil = handler ifTrue: [
-					'Signal for ' , handle printString , ' with no handler' out
-				]
-				ifFalse: 
-				(* Enqueue the callback *)
-				[
-					currentActor enqueueReceiver: handler
-						selector: #value:value:
-						arguments: {status. signals. }
-						resolver: nil
-				].
-			
-			(* Process the VM's message queue and go back to the VM *)
-			finish: drainQueue
 		)
 		private finish: wakeup <Integer> = (
 			(* :literalmessage: primitive: 139 *)
@@ -753,12 +753,6 @@ Note that all slots contain objects that belong to the actor which performed the
 		|
 		internalRefs at: self put: ref.
 	) (
-		yourself = (
-			^super yourself
-		)
-		public isKindOfPromise ^<Boolean> = (
-			^true
-		)
 		doesNotUnderstand: message <Message> = (
 			(* For the debugger/inspector. Questionable. *)
 			
@@ -768,6 +762,12 @@ Note that all slots contain objects that belong to the actor which performed the
 					(message selector startsWith: 'isKindOf') ifTrue: [ ^false ]
 				].
 			^internalRef immediateSend: message
+		)
+		public isKindOfPromise ^<Boolean> = (
+			^true
+		)
+		yourself = (
+			^super yourself
 		)
 	) : ()
 	public class Resolver new = Object new (
@@ -981,6 +981,9 @@ Note that all slots contain objects that belong to the actor which sent #whenFul
 		Promise = object ifTrue: [ ^true ].
 		^false
 	)
+	public ultimateExceptionHandler: h <[:Exception :Activation | Object]> = (
+		handlerOfLastResort:: h
+	)
 	private wrapArgument: argument from: sourceActor to: targetActor = (
 		(* [argument] lives in [sourceActor], answer the corresponding proxy that lives in [targetActor] *)
 		
@@ -993,8 +996,5 @@ Note that all slots contain objects that belong to the actor which sent #whenFul
 		^arguments collect: [:argument |
 				wrapArgument: argument from: sourceActor to: targetActor
 			]
-	)
-	public ultimateExceptionHandler: h <[:Exception :Activation | Object]> = (
-		handlerOfLastResort:: h
 	)
 ) : ()

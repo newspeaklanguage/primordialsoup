@@ -52,16 +52,6 @@ Expat mappings:
 			rawPerformSet.
 			^rawPop
 		)
-		public propertyAt: key = (
-			(* Platform-portable JS property read. On this platform every JS value is an Alien and at: already has property semantics, so this is an alias. It exists because on NS2JS a Uint8Array crosses the boundary as a Newspeak ByteArray, whose at: is 1-based element access - so at: cannot be used portably for property access on values that may be typed arrays. Code that means "read a JS property" should say so with this selector. *)
-			
-			^at: key
-		)
-		public propertyAt: key put: value = (
-			(* Platform-portable JS property write; see propertyAt:. *)
-			
-			^at: key put: value
-		)
 		doesNotUnderstand: message = (
 			| jsSelector |
 			0 = message arguments size ifTrue: [
@@ -90,6 +80,15 @@ Expat mappings:
 		public isKindOfClosure ^<Boolean> = (
 			^false
 		)
+		public isKindOfDOMNode ^<Boolean> = (
+			^instanceOf: (global at: #Node)
+		)
+		public isKindOfImage ^<Boolean> = (
+			^instanceOf: (global at: #HTMLImageElement)
+		)
+		public isKindOfJSAlien ^<Boolean> = (
+			^true
+		)
 		public isUndefined ^<Boolean> = (
 			^0 = index
 		)
@@ -117,6 +116,29 @@ Expat mappings:
 			
 			(* undefined.toString() throws in JS *)
 			^self perform: #toString withArguments: {}
+		)
+		public propertyAt: key = (
+			(* Platform-portable JS property read. On this platform every JS value is an Alien and at: already has property semantics, so this is an alias. It exists because on NS2JS a Uint8Array crosses the boundary as a Newspeak ByteArray, whose at: is 1-based element access - so at: cannot be used portably for property access on values that may be typed arrays. Code that means "read a JS property" should say so with this selector. *)
+			
+			^at: key
+		)
+		public propertyAt: key put: value = (
+			(* Platform-portable JS property write; see propertyAt:. *)
+			
+			^at: key put: value
+		)
+		private pushExpat: closure <[:Object | Object]> = (
+			| expatIndex <Integer> |
+			expatIndex:: nextExpatIndex.
+			nextExpatIndex:: 1 + expatIndex.
+			handles addLast: [:status :pending |
+					| arguments = Array new: status. |
+					status to: 1
+						by: -1
+						do: [:argumentIndex | arguments at: argumentIndex put: rawPop ].
+					rawPush: (closure valueWithArguments: arguments)
+				].
+			rawPushExpat: expatIndex
 		)
 		private rawPerformCall: numArgs = (
 			(* :literalmessage: primitive: 163 *)
@@ -187,28 +209,6 @@ Expat mappings:
 			rawPush: key.
 			rawPerformDelete.
 			^rawPop
-		)
-		public isKindOfJSAlien ^<Boolean> = (
-			^true
-		)
-		public isKindOfImage ^<Boolean> = (
-			^instanceOf: (global at: #HTMLImageElement)
-		)
-		private pushExpat: closure <[:Object | Object]> = (
-			| expatIndex <Integer> |
-			expatIndex:: nextExpatIndex.
-			nextExpatIndex:: 1 + expatIndex.
-			handles addLast: [:status :pending |
-					| arguments = Array new: status. |
-					status to: 1
-						by: -1
-						do: [:argumentIndex | arguments at: argumentIndex put: rawPop ].
-					rawPush: (closure valueWithArguments: arguments)
-				].
-			rawPushExpat: expatIndex
-		)
-		public isKindOfDOMNode ^<Boolean> = (
-			^instanceOf: (global at: #Node)
 		)
 	) : ()
 	public alienTableSize = (

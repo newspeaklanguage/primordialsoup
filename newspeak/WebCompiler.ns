@@ -80,19 +80,6 @@ WebCompiler.vfuel \
 				].
 			Error signal: 'Unknown resource type: ' , path
 		)
-		readFileAsBytes: filename = (
-			(* :literalmessage: primitive: 130 *)
-			
-			halt
-		)
-		readFileAsString: filename = (
-			^String withAll: (readFileAsBytes: filename)
-		)
-		writeBytes: bytes toFileNamed: filename = (
-			(* :literalmessage: primitive: 128 *)
-			
-			halt
-		)
 		public main: args <Sequence[String]> = (
 			| index ::= 1. |
 			
@@ -112,6 +99,19 @@ WebCompiler.vfuel \
 						to: (args at: index + 2).
 					index:: index + 3
 				]
+		)
+		readFileAsBytes: filename = (
+			(* :literalmessage: primitive: 130 *)
+			
+			halt
+		)
+		readFileAsString: filename = (
+			^String withAll: (readFileAsBytes: filename)
+		)
+		writeBytes: bytes toFileNamed: filename = (
+			(* :literalmessage: primitive: 128 *)
+			
+			halt
 		)
 	) : ()
 	public class Preloader resources: r <Array[{String. String. String | Class}]> applicationConfiguration: a <Class> = Object new (

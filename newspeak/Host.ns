@@ -11,21 +11,13 @@ class Host usingPlatform: p = Object new (
 		private configAlien <Alien>
 	|
 ) (
+	lazy public fetcher = Fetcher new.
+	lazy private global = js global.
+	lazy public performer = Performer new.
 	public class Fetcher new = Object new (
 		(* An attenuated web-read capability: hand an application this object instead of platform js. It can GET a URL and nothing else. Results are Newspeak promises - fulfilled with the response body text, broken with a legible reason. *)
 		
 	) (
-		public fetchText: url <String> ^<Promise> = (
-			^fetchTextFor: url
-		)
-		public fetchText: url <String> headers: hdrs <Alien[JSObject] | UndefinedObject> ^<Promise> = (
-			(* As fetchText:, with request headers - enough to reach an endpoint
-	   behind an API key without handing the application platform js. On the
-	   Croquet host this same message coordinates the fetch across clients;
-	   here there is a single client, so it simply runs. *)
-			
-			^fetchTextFor: url headers: hdrs
-		)
 		public fetchBytes: url <String> ^<Promise> = (
 			(* As fetchText:, but fulfilled with the response body as an ArrayBuffer.
 	   For callers that want bytes rather than characters - a zip, an image -
@@ -37,6 +29,17 @@ class Host usingPlatform: p = Object new (
 			(* As fetchBytes:, with request headers. *)
 			
 			^fetchBytesFor: url headers: hdrs
+		)
+		public fetchText: url <String> ^<Promise> = (
+			^fetchTextFor: url
+		)
+		public fetchText: url <String> headers: hdrs <Alien[JSObject] | UndefinedObject> ^<Promise> = (
+			(* As fetchText:, with request headers - enough to reach an endpoint
+	   behind an API key without handing the application platform js. On the
+	   Croquet host this same message coordinates the fetch across clients;
+	   here there is a single client, so it simply runs. *)
+			
+			^fetchTextFor: url headers: hdrs
 		)
 		public fetchText: url <String> headers: hdrs <Alien[JSObject] | UndefinedObject> body: body <String | UndefinedObject> ^<Promise> = (
 			(* POST body to url and answer the response text. The capability is no
@@ -119,48 +122,6 @@ class Host usingPlatform: p = Object new (
 			^performText: request via: op
 		)
 	) : ()
-	lazy private global = js global.
-	lazy public fetcher = Fetcher new.
-	lazy public performer = Performer new.
-	public busAvailable ^<Boolean> = (
-		^boolFor: 'bus'
-	)
-	public croquetFiles ^<String | UndefinedObject> = (
-		(* The origin-relative Croquet file-server path, or nil when this origin announces no local Croquet. *)
-		
-		^croquetField: 'files'
-	)
-	public croquetReflector ^<String | UndefinedObject> = (
-		(* The local Croquet reflector URL, or nil when this origin announces none. *)
-		
-		^croquetField: 'reflector'
-	)
-	public fetchAvailable ^<Boolean> = (
-		^boolFor: 'fetch'
-	)
-	public gitAvailable ^<Boolean> = (
-		^boolFor: 'git'
-	)
-	public serviceOrigin ^<String | UndefinedObject> = (
-		(* Where this host's /_ns services live once discovery has settled: '' for
-   the page origin (the contract), a base URL for the dev fallback, nil while
-   unsettled or when no host answered. Consumers build /_ns URLs by
-   concatenation: serviceOrigin , '/_ns/fetch'. *)
-		
-		ensureProbe.
-		configAlien isNil ifTrue: [ ^nil ].
-		^serviceBase
-	)
-	public whenReady: onKnown <[:Host | Object]> = (
-		(* Runs onKnown with this host once discovery has settled - immediately if it already has. Registering triggers the probe. Before settlement the synchronous accessors answer unavailable; afterwards they answer the discovered truth. *)
-		
-		configKnown ifTrue: [
-				onKnown value: self.
-				^self
-			].
-		readyBlocks add: onKnown.
-		ensureProbe
-	)
 	acceptConfig: cfg <Alien> base: base <String> ifUnusable: failBlock <[]> = (
 		(versionOf: cfg) = 1 ifFalse: [ ^failBlock value ].
 		configAlien:: cfg.
@@ -192,6 +153,9 @@ class Host usingPlatform: p = Object new (
 	breakQuietly: r <Resolver> with: reason <String> = (
 		[ r break: reason ] on: Exception do: [:e | nil ]
 	)
+	public busAvailable ^<Boolean> = (
+		^boolFor: 'bus'
+	)
 	croquetField: key <String> ^<String | UndefinedObject> = (
 		ensureProbe.
 		configAlien isNil ifTrue: [ ^nil ].
@@ -203,6 +167,16 @@ class Host usingPlatform: p = Object new (
 				]
 				ifFalse: [ nil ]
 		] on: Exception do: [:e | nil ]
+	)
+	public croquetFiles ^<String | UndefinedObject> = (
+		(* The origin-relative Croquet file-server path, or nil when this origin announces no local Croquet. *)
+		
+		^croquetField: 'files'
+	)
+	public croquetReflector ^<String | UndefinedObject> = (
+		(* The local Croquet reflector URL, or nil when this origin announces none. *)
+		
+		^croquetField: 'reflector'
 	)
 	describeJS: reason ^<String> = (
 		(* A rejection may be a Newspeak string we produced or a JS error alien; normalise either to something printable without raising. *)
@@ -245,19 +219,6 @@ class Host usingPlatform: p = Object new (
 			].
 		^raw
 	)
-	pageOriginIsLoopback ^<Boolean> = (
-		(* Is the page this image was served to itself on loopback? Answers false
-   when the hostname cannot be read, so an unreadable location fails closed
-   like everything else in this module. *)
-		
-		| hostname |
-		hostname:: [ (global at: 'location') at: 'hostname' ] on: Exception
-			do: [:e | nil ].
-		hostname isNil ifTrue: [ ^false ].
-		^((hostname = 'localhost' or: [ hostname = '127.0.0.1' ]) or: [
-				hostname = '::1'
-			]) or: [ hostname = '[::1]' ]
-	)
 	ensureProbe = (
 		(* Fetch /_ns/config once, on first use: the page origin first (the contract), the dev front door second. Every failure path converges on finishProbe with configAlien still nil - fail closed, never an error. *)
 		
@@ -272,6 +233,53 @@ class Host usingPlatform: p = Object new (
 					ifFalse: [ probeAt: fb onFailure: [ finishProbe ] ]
 			]
 	)
+	public fetchAvailable ^<Boolean> = (
+		^boolFor: 'fetch'
+	)
+	fetchBytesFor: url <String> ^<Promise> = (
+		^fetchBytesFor: url headers: nil
+	)
+	fetchBytesFor: url <String> headers: hdrs <Alien[JSObject] | UndefinedObject> ^<Promise> = (
+		| r |
+		r:: Resolver new.
+		startFetch: url headers: hdrs bytes: true resolver: r.
+		^r promise
+	)
+	fetchOptionsForHeaders: hdrs <Alien[JSObject] | UndefinedObject> ^<Alien[JSObject] | UndefinedObject> = (
+		(* A GET options object carrying hdrs, or nil when there are none - in which
+	   case the caller does the bare one-argument fetch it always did. Kept
+	   separate so the plain and the coordinated host build the request
+	   identically. *)
+		
+		^fetchOptionsForHeaders: hdrs body: nil
+	)
+	fetchOptionsForHeaders: hdrs <Alien[JSObject] | UndefinedObject> body: body <String | UndefinedObject> ^<Alien[JSObject] | UndefinedObject> = (
+		(* As fetchOptionsForHeaders:, and POST when there is a body. Nil for
+	   neither, so the caller does the bare one-argument fetch it always did. *)
+		
+		| options |
+		(hdrs isNil and: [ body isNil ]) ifTrue: [ ^nil ].
+		options:: (global at: #Object) new.
+		options at: 'method' put: (body isNil ifTrue: [ 'GET' ] ifFalse: [ 'POST' ]).
+		hdrs isNil ifFalse: [ options at: 'headers' put: hdrs ].
+		body isNil ifFalse: [ options at: 'body' put: body ].
+		^options
+	)
+	fetchTextFor: url <String> ^<Promise> = (
+		^fetchTextFor: url headers: nil
+	)
+	fetchTextFor: url <String> headers: hdrs <Alien[JSObject] | UndefinedObject> ^<Promise> = (
+		| r |
+		r:: Resolver new.
+		startFetch: url headers: hdrs resolver: r.
+		^r promise
+	)
+	fetchTextFor: url <String> headers: hdrs <Alien[JSObject] | UndefinedObject> body: body <String | UndefinedObject> ^<Promise> = (
+		| r |
+		r:: Resolver new.
+		startFetch: url headers: hdrs body: body bytes: false resolver: r.
+		^r promise
+	)
 	finishProbe = (
 		configKnown:: true.
 		probeInFlight:: false.
@@ -280,9 +288,25 @@ class Host usingPlatform: p = Object new (
 	fulfillQuietly: r <Resolver> with: value = (
 		[ r fulfill: value ] on: Exception do: [:e | nil ]
 	)
+	public gitAvailable ^<Boolean> = (
+		^boolFor: 'git'
+	)
 	isSuccessStatus: status ^<Boolean> = (
 		status isNil ifTrue: [ ^false ].
 		^status >= 200 and: [ status < 400 ]
+	)
+	pageOriginIsLoopback ^<Boolean> = (
+		(* Is the page this image was served to itself on loopback? Answers false
+   when the hostname cannot be read, so an unreadable location fails closed
+   like everything else in this module. *)
+		
+		| hostname |
+		hostname:: [ (global at: 'location') at: 'hostname' ] on: Exception
+			do: [:e | nil ].
+		hostname isNil ifTrue: [ ^false ].
+		^((hostname = 'localhost' or: [ hostname = '127.0.0.1' ]) or: [
+				hostname = '::1'
+			]) or: [ hostname = '[::1]' ]
 	)
 	probeAt: base <String> onFailure: failBlock <[]> = (
 		| jsPromise |
@@ -298,6 +322,19 @@ class Host usingPlatform: p = Object new (
 				[ failBlock value ] on: Exception do: [:e2 | nil ].
 				nil
 			]
+	)
+	public serviceOrigin ^<String | UndefinedObject> = (
+		(* Where this host's /_ns services live once discovery has settled: '' for
+   the page origin (the contract), a base URL for the dev fallback, nil while
+   unsettled or when no host answered. Consumers build /_ns URLs by
+   concatenation: serviceOrigin , '/_ns/fetch'. *)
+		
+		ensureProbe.
+		configAlien isNil ifTrue: [ ^nil ].
+		^serviceBase
+	)
+	settleFetch: r <Resolver> from: response <Alien> url: url <String> = (
+		^settleFetch: r from: response url: url bytes: false
 	)
 	settleFetch: r <Resolver> from: response <Alien> url: url <String> bytes: wantBytes <Boolean> = (
 		(* Settle r from a completed response, reading the body as an ArrayBuffer
@@ -320,46 +357,6 @@ class Host usingPlatform: p = Object new (
 					with: 'HTTP ' , (statusLabel: status) , ' but the body was unreadable for ' , url.
 				nil
 			]
-	)
-	settleFetch: r <Resolver> from: response <Alien> url: url <String> = (
-		^settleFetch: r from: response url: url bytes: false
-	)
-	statusLabel: status ^<String> = (
-		status isNil ifTrue: [ ^'(no status)' ].
-		^status printString
-	)
-	versionOf: cfg <Alien> = (
-		^[
-			(cfg includesKey: 'version') ifTrue: [ cfg at: 'version' ] ifFalse: [ nil ]
-		] on: Exception do: [:e | nil ]
-	)
-	fetchOptionsForHeaders: hdrs <Alien[JSObject] | UndefinedObject> ^<Alien[JSObject] | UndefinedObject> = (
-		(* A GET options object carrying hdrs, or nil when there are none - in which
-	   case the caller does the bare one-argument fetch it always did. Kept
-	   separate so the plain and the coordinated host build the request
-	   identically. *)
-		
-		^fetchOptionsForHeaders: hdrs body: nil
-	)
-	fetchOptionsForHeaders: hdrs <Alien[JSObject] | UndefinedObject> body: body <String | UndefinedObject> ^<Alien[JSObject] | UndefinedObject> = (
-		(* As fetchOptionsForHeaders:, and POST when there is a body. Nil for
-	   neither, so the caller does the bare one-argument fetch it always did. *)
-		
-		| options |
-		(hdrs isNil and: [ body isNil ]) ifTrue: [ ^nil ].
-		options:: (global at: #Object) new.
-		options at: 'method' put: (body isNil ifTrue: [ 'GET' ] ifFalse: [ 'POST' ]).
-		hdrs isNil ifFalse: [ options at: 'headers' put: hdrs ].
-		body isNil ifFalse: [ options at: 'body' put: body ].
-		^options
-	)
-	startFetch: url <String> headers: hdrs <Alien[JSObject] | UndefinedObject> resolver: r <Resolver> = (
-		(* As startFetch:resolver:, with request headers. *)
-		
-		^startFetch: url headers: hdrs bytes: false resolver: r
-	)
-	startFetch: url <String> headers: hdrs <Alien[JSObject] | UndefinedObject> bytes: wantBytes <Boolean> resolver: r <Resolver> = (
-		^startFetch: url headers: hdrs body: nil bytes: wantBytes resolver: r
 	)
 	startFetch: url <String> headers: hdrs <Alien[JSObject] | UndefinedObject> body: body <String | UndefinedObject> bytes: wantBytes <Boolean> resolver: r <Resolver> = (
 		(* The canonical request. Reads the response as bytes when wantBytes and as
@@ -386,31 +383,34 @@ class Host usingPlatform: p = Object new (
 				nil
 			]
 	)
+	startFetch: url <String> headers: hdrs <Alien[JSObject] | UndefinedObject> bytes: wantBytes <Boolean> resolver: r <Resolver> = (
+		^startFetch: url headers: hdrs body: nil bytes: wantBytes resolver: r
+	)
+	startFetch: url <String> headers: hdrs <Alien[JSObject] | UndefinedObject> resolver: r <Resolver> = (
+		(* As startFetch:resolver:, with request headers. *)
+		
+		^startFetch: url headers: hdrs bytes: false resolver: r
+	)
 	startFetch: url <String> resolver: r <Resolver> = (
 		^startFetch: url headers: nil resolver: r
 	)
-	fetchTextFor: url <String> headers: hdrs <Alien[JSObject] | UndefinedObject> ^<Promise> = (
-		| r |
-		r:: Resolver new.
-		startFetch: url headers: hdrs resolver: r.
-		^r promise
+	statusLabel: status ^<String> = (
+		status isNil ifTrue: [ ^'(no status)' ].
+		^status printString
 	)
-	fetchTextFor: url <String> headers: hdrs <Alien[JSObject] | UndefinedObject> body: body <String | UndefinedObject> ^<Promise> = (
-		| r |
-		r:: Resolver new.
-		startFetch: url headers: hdrs body: body bytes: false resolver: r.
-		^r promise
+	versionOf: cfg <Alien> = (
+		^[
+			(cfg includesKey: 'version') ifTrue: [ cfg at: 'version' ] ifFalse: [ nil ]
+		] on: Exception do: [:e | nil ]
 	)
-	fetchBytesFor: url <String> headers: hdrs <Alien[JSObject] | UndefinedObject> ^<Promise> = (
-		| r |
-		r:: Resolver new.
-		startFetch: url headers: hdrs bytes: true resolver: r.
-		^r promise
-	)
-	fetchBytesFor: url <String> ^<Promise> = (
-		^fetchBytesFor: url headers: nil
-	)
-	fetchTextFor: url <String> ^<Promise> = (
-		^fetchTextFor: url headers: nil
+	public whenReady: onKnown <[:Host | Object]> = (
+		(* Runs onKnown with this host once discovery has settled - immediately if it already has. Registering triggers the probe. Before settlement the synchronous accessors answer unavailable; afterwards they answer the discovered truth. *)
+		
+		configKnown ifTrue: [
+				onKnown value: self.
+				^self
+			].
+		readyBlocks add: onKnown.
+		ensureProbe
 	)
 ) : ()

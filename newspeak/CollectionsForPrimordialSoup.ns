@@ -164,15 +164,15 @@ nil is a valid element. *)
 		public sort: lessOrEqual <[:E :E | Boolean]> = (
 			data sortFrom: 1 to: size_ by: lessOrEqual
 		)
+		public tail ^<List[E]> = (
+			size < 2 ifTrue: [ ^List new ].
+			^self copyFrom: 2 to: size
+		)
 		public with: other <List[X def]> do: action <[:E :X | Object]> = (
 			assert: [ self size = other size ]
 				message: 'Cannot jointly interate collections of different size'.
 			1 to: size
 				do: [:index <Integer> | action value: (at: index) value: (other at: index) ]
-		)
-		public tail ^<List[E]> = (
-			size < 2 ifTrue: [ ^List new ].
-			^self copyFrom: 2 to: size
 		)
 	) : (
 		public new ^<List[E]> = (
@@ -200,10 +200,6 @@ nil is a valid key and a valid value. *)
 		|
 		createTable: capacity.
 	) (
-		hashtable_ ^<Array> = (
-			hashtable_slot isNil ifTrue: [ hashtable_slot:: rehash ].
-			^hashtable_slot
-		)
 		public addAll: other = (
 			other keysAndValuesDo: [:key :value | self at: key put: value ]
 		)
@@ -262,6 +258,10 @@ nil is a valid key and a valid value. *)
 					key:: table at: keyIndex.
 					table = key ifFalse: [ action value: (table at: 1 + keyIndex) ]
 				]
+		)
+		hashtable_ ^<Array> = (
+			hashtable_slot isNil ifTrue: [ hashtable_slot:: rehash ].
+			^hashtable_slot
 		)
 		public includesKey: key <K> ^<Boolean> = (
 			^(scanFor: key) > 0
@@ -451,10 +451,6 @@ nil is a valid element. *)
 		|
 		createTable: capacity.
 	) (
-		hashtable_ ^<Array> = (
-			hashtable_slot isNil ifTrue: [ hashtable_slot:: rehash ].
-			^hashtable_slot
-		)
 		public add: element <E> ^<E> = (
 			| index |
 			index:: scanFor: element.
@@ -495,6 +491,10 @@ nil is a valid element. *)
 					element:: table at: keyIndex.
 					table = element ifFalse: [ action value: element ]
 				]
+		)
+		hashtable_ ^<Array> = (
+			hashtable_slot isNil ifTrue: [ hashtable_slot:: rehash ].
+			^hashtable_slot
 		)
 		public include: element <E> ifNew: onNew <[]> ^<E> = (
 			| bucketIndex keyIndex |

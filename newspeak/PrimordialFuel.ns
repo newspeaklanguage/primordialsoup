@@ -521,12 +521,11 @@ class PrimordialFuel usingPlatform: p internalKernel: k
 				objects = List new.
 			|
 		) (
-			public writeNodes = (
-				writeFormat: 3.
+			public analyze: object = (
+				objects add: object.
 				
-				(* :todo: maybe kEphemeronCid? *)
-				stream unsigned: objects size.
-				objects do: [:object | registerRef: object ]
+				(* Nothing is traced here; analyzeEphemeronList might trace later. *)
+				ephemeronList addLast: object
 			)
 			public writeEdges = (
 				writeRef: Ephemeron.
@@ -538,11 +537,12 @@ class PrimordialFuel usingPlatform: p internalKernel: k
 						writeWeakRef: object finalizer
 					]
 			)
-			public analyze: object = (
-				objects add: object.
+			public writeNodes = (
+				writeFormat: 3.
 				
-				(* Nothing is traced here; analyzeEphemeronList might trace later. *)
-				ephemeronList addLast: object
+				(* :todo: maybe kEphemeronCid? *)
+				stream unsigned: objects size.
+				objects do: [:object | registerRef: object ]
 			)
 		) : ()
 		class FloatCluster new = Object new (
@@ -701,6 +701,20 @@ class PrimordialFuel usingPlatform: p internalKernel: k
 		analyze: object = (
 			(clusterForClass: (classOf: object)) analyze: object
 		)
+		analyzeEphemeronList = (
+			ephemeronList removeAllSuchThat: [:e |
+					
+					(* Ephemeron accessors are known to be side-effect free. *)
+					
+					(* Enliven the value and finalizer when the key is live. *)
+					(refs includesKey: e key) ifTrue: [
+							enqueue: e value.
+							enqueue: e finalizer.
+							true
+						]
+						ifFalse: [ false ]
+				]
+		)
 		clusterForClass: klass = (
 			^clusters at: klass ifAbsentPut: [ newClusterForClass: klass ]
 		)
@@ -746,15 +760,6 @@ class PrimordialFuel usingPlatform: p internalKernel: k
 			refs at: object putReplace: nextRefIndex.
 			nextRefIndex:: nextRefIndex + 1
 		)
-		writeFormat: format = (
-			stream int32: format
-		)
-		writeRef: object = (
-			stream unsigned: (refs at: object)
-		)
-		writeWeakRef: object = (
-			stream unsigned: (refs at: object ifAbsent: [ refs at: nil ])
-		)
 		public serialize: root = (
 			nextRefIndex:: 1.
 			sharedObjects do: [:sharedObject | preRegisterRef: sharedObject ].
@@ -775,19 +780,14 @@ class PrimordialFuel usingPlatform: p internalKernel: k
 			writeRef: root.
 			^stream stealBytes
 		)
-		analyzeEphemeronList = (
-			ephemeronList removeAllSuchThat: [:e |
-					
-					(* Ephemeron accessors are known to be side-effect free. *)
-					
-					(* Enliven the value and finalizer when the key is live. *)
-					(refs includesKey: e key) ifTrue: [
-							enqueue: e value.
-							enqueue: e finalizer.
-							true
-						]
-						ifFalse: [ false ]
-				]
+		writeFormat: format = (
+			stream int32: format
+		)
+		writeRef: object = (
+			stream unsigned: (refs at: object)
+		)
+		writeWeakRef: object = (
+			stream unsigned: (refs at: object ifAbsent: [ refs at: nil ])
 		)
 	) : ()
 	public class Snapshotter new = Serializer new (
@@ -832,6 +832,20 @@ class PrimordialFuel usingPlatform: p internalKernel: k
 			replacements at: old put: nue.
 			replacements at: (classOf: old) put: (classOf: nue)
 		)
+		replaceMethod: method = (
+			^replacements at: method
+				ifAbsentPut: [
+					| newMethod = Method new. |
+					newMethod header: method header.
+					newMethod literals: (canonicalize: method literals in: canonicalLiterals).
+					newMethod bytecode: (canonicalize: method bytecode in: canonicalBytecode).
+					newMethod mixin: method mixin.
+					newMethod selector: method selector.
+					newMethod metadata: (keepSource ifTrue: [ method metadata ]
+							ifFalse: [ nil = method metadata ifFalse: [ 0 ] ]).
+					newMethod
+				]
+		)
 		replaceMixin: mixin = (
 			^replacements at: mixin
 				ifAbsentPut: [
@@ -861,12 +875,6 @@ class PrimordialFuel usingPlatform: p internalKernel: k
 			
 			(* registerRef: expects we've already traced the object. *)
 			refs at: newSymbolTable put: 0
-		)
-		writeRef: object = (
-			^super writeRef: (replacements atOrItself: object)
-		)
-		writeWeakRef: object = (
-			^super writeWeakRef: (replacements atOrItself: object)
 		)
 		public serialize: root = (
 			| interpreter |
@@ -898,20 +906,6 @@ class PrimordialFuel usingPlatform: p internalKernel: k
 			orderedClusters do: [:c | c writeEdges ].
 			writeRef: root.
 			^stream stealBytes
-		)
-		replaceMethod: method = (
-			^replacements at: method
-				ifAbsentPut: [
-					| newMethod = Method new. |
-					newMethod header: method header.
-					newMethod literals: (canonicalize: method literals in: canonicalLiterals).
-					newMethod bytecode: (canonicalize: method bytecode in: canonicalBytecode).
-					newMethod mixin: method mixin.
-					newMethod selector: method selector.
-					newMethod metadata: (keepSource ifTrue: [ method metadata ]
-							ifFalse: [ nil = method metadata ifFalse: [ 0 ] ]).
-					newMethod
-				]
 		)
 		public snapshotApp: app withRuntime: runtime = (
 			^snapshotApp: app withRuntime: runtime keepSource: false
@@ -960,6 +954,12 @@ class PrimordialFuel usingPlatform: p internalKernel: k
 			replaceClass: InstanceMixin with: newKernel InstanceMixin.
 			replaceClass: ClassMixin with: newKernel ClassMixin.
 			^serialize: objectStore
+		)
+		writeRef: object = (
+			^super writeRef: (replacements atOrItself: object)
+		)
+		writeWeakRef: object = (
+			^super writeWeakRef: (replacements atOrItself: object)
 		)
 	) : ()
 	class TemporaryClass withFormat: fmt = Object new (

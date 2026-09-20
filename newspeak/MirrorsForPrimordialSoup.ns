@@ -48,6 +48,9 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 			nil = rawClosure ifTrue: [ ^nil ].
 			^ObjectMirror reflecting: rawClosure
 		)
+		public compileExpression: expression <String> scope: rawScope <Map[Symbol, Object]> ^<MethodMirror> = (
+			^MethodMirror reflecting: (compileExpression: expression with: rawScope)
+		)
 		private compileExpression: expression <String> with: rawScope <Map[Symbol, Object]> ^<Method> = (
 			| mixinMirror imethod |
 			
@@ -62,8 +65,51 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 			imethod debugInfo source: expression.
 			^imethod compiledMethod metadata: imethod debugInfo
 		)
-		public compileExpression: expression <String> scope: rawScope <Map[Symbol, Object]> ^<MethodMirror> = (
-			^MethodMirror reflecting: (compileExpression: expression with: rawScope)
+		private computeDebugInfo ^<DebugInfo> = (
+			| rawMethod <Method> = reflectee method. metadata <String | LazySlotTag | DebugInfo | Nil> = rawMethod metadata. definingMixin <Mixin> |
+			
+			(* Expression *)
+			metadata isKindOfDebugInfo ifTrue: [ ^metadata ].
+			
+			(* Regular method *)
+			reflectee method isSynthetic ifFalse: [
+					^(compiler compileMethodSource: reflectee method source
+						within: method definingMixin) debugInfo
+				].
+			
+			(* Lazy slot method *)
+			reflectee method isLazySlotMethod ifTrue: [
+					^(compiler compileLazySlotSource: reflectee method source
+						within: method definingMixin) debugInfo
+				].
+			
+			(* Other synthetic methods *)
+			definingMixin:: rawMethod mixin.
+			definingMixin isMeta ifFalse: [
+					
+					(* Nested class accessor *)
+					definingMixin _nestedMixins do: [:nestedMixin |
+							nestedMixin _name = rawMethod selector ifTrue: [
+									^(compiler compileClassHeader2: nestedMixin _headerSource
+										within: (mxn: definingMixin)) accessor debugInfo
+								]
+						].
+					
+					(* Instance initializer *)
+					(isSubinitializerSelector: rawMethod selector) ifTrue: [
+							^(compiler compileClassHeader2: rawMethod mixin _headerSource
+								within: (mxn: definingMixin _enclosingMixin)) initializers first debugInfo
+						]
+				].
+			
+			(* Factory *)
+			definingMixin isMeta ifTrue: [
+					definingMixin _instanceMixin _primaryFactorySelector = rawMethod selector ifTrue: [
+							^(compiler compileClassHeader2: definingMixin _instanceMixin _headerSource
+								within: (mxn: definingMixin _enclosingMixin)) factory debugInfo
+						]
+				].
+			halt
 		)
 		private computeDebugMapper = (
 			^computeDebugInfo mapperForContext: reflectee
@@ -72,13 +118,6 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 			| rawEnclosing = reflectee outerContext. |
 			nil = rawEnclosing ifTrue: [ ^nil ].
 			^ActivationMirror reflecting: rawEnclosing thread: thread
-		)
-		public threadMirror ^<ThreadMirror> = (
-			(* The thread this activation belongs to, wrapped. Named threadMirror
-	   (not thread) to avoid colliding with the private `thread` slot
-	   accessor used inside the class. *)
-			
-			^ThreadMirror reflecting: thread
 		)
 		public evaluate: expression <String> ^<ThreadMirror> = (
 			^(evaluateSuspended: expression) resume
@@ -232,51 +271,12 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 			thread stepThrough: reflectee.
 			^ThreadMirror reflecting: thread
 		)
-		private computeDebugInfo ^<DebugInfo> = (
-			| rawMethod <Method> = reflectee method. metadata <String | LazySlotTag | DebugInfo | Nil> = rawMethod metadata. definingMixin <Mixin> |
+		public threadMirror ^<ThreadMirror> = (
+			(* The thread this activation belongs to, wrapped. Named threadMirror
+	   (not thread) to avoid colliding with the private `thread` slot
+	   accessor used inside the class. *)
 			
-			(* Expression *)
-			metadata isKindOfDebugInfo ifTrue: [ ^metadata ].
-			
-			(* Regular method *)
-			reflectee method isSynthetic ifFalse: [
-					^(compiler compileMethodSource: reflectee method source
-						within: method definingMixin) debugInfo
-				].
-			
-			(* Lazy slot method *)
-			reflectee method isLazySlotMethod ifTrue: [
-					^(compiler compileLazySlotSource: reflectee method source
-						within: method definingMixin) debugInfo
-				].
-			
-			(* Other synthetic methods *)
-			definingMixin:: rawMethod mixin.
-			definingMixin isMeta ifFalse: [
-					
-					(* Nested class accessor *)
-					definingMixin _nestedMixins do: [:nestedMixin |
-							nestedMixin _name = rawMethod selector ifTrue: [
-									^(compiler compileClassHeader2: nestedMixin _headerSource
-										within: (mxn: definingMixin)) accessor debugInfo
-								]
-						].
-					
-					(* Instance initializer *)
-					(isSubinitializerSelector: rawMethod selector) ifTrue: [
-							^(compiler compileClassHeader2: rawMethod mixin _headerSource
-								within: (mxn: definingMixin _enclosingMixin)) initializers first debugInfo
-						]
-				].
-			
-			(* Factory *)
-			definingMixin isMeta ifTrue: [
-					definingMixin _instanceMixin _primaryFactorySelector = rawMethod selector ifTrue: [
-							^(compiler compileClassHeader2: definingMixin _instanceMixin _headerSource
-								within: (mxn: definingMixin _enclosingMixin)) factory debugInfo
-						]
-				].
-			halt
+			^ThreadMirror reflecting: thread
 		)
 	) : (
 		public invokeSuspended: closure <[]> ^<ThreadMirror> = (
@@ -296,37 +296,6 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 			^ThreadMirror reflecting: thread
 		)
 	)
-	public class AtomicInstallWrapper new = Object new (
-	) (
-		setMixinsOf: ir <IntermediateClassDeclaration> from: mxn <InstanceMixin> = (
-			| mixinMap = Map new. |
-			ir existingMixin: mxn.
-			mxn _nestedMixins do: [:nm <InstanceMixin> | mixinMap at: nm _name put: nm ].
-			ir instanceSide nestedClasses do: [:ncir <IntermediateClassDeclaration> |
-					| entry = mixinMap at: ncir simpleName ifAbsent: [ ]. |
-					nil = entry ifFalse: [ setMixinsOf: ncir from: entry ]
-				]
-		)
-		installIRs: classDecls <List[IntermediateClassDeclaration]> into: ns <Map[Symbol, Object]> ^<List[MixinMirror]> = (
-			classDecls do: [:ir <IntermediateClassDeclaration> |
-					| entry = ns at: ir simpleName ifAbsent: [ ]. |
-					nil = entry ifFalse: [
-							entry isKindOfClass ifTrue: [ setMixinsOf: ir from: (mixinOf: entry) ]
-						]
-				].
-			^(AtomicInstaller new install: classDecls) collect: [:im <InstanceMixin> |
-					MixinMirror reflecting: im
-				]
-		)
-		public install: builders <List[ClassDeclarationBuilder]> into: ns = (
-			| irs <List[IntermediateClassDeclaration]> = 
-			(* Problem: Atomic install takes list of IRs. IR is not exposed by builder. Extract by brute force - mirrors are omnipotent! *)
-			builders collect: [:b <ClassDeclarationBuilder> |
-					((ObjectMirror reflecting: b) getSlot: #intermediate) reflectee
-				]. |
-			^installIRs: irs into: ns
-		)
-	) : ()
 	class AtomicInstaller new = Object new (
 		|
 			private updateMixinsAndClasses <IdentityMap[OldObject, NewObject]>
@@ -575,6 +544,37 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 				]
 		)
 	) : ()
+	public class AtomicInstallWrapper new = Object new (
+	) (
+		public install: builders <List[ClassDeclarationBuilder]> into: ns = (
+			| irs <List[IntermediateClassDeclaration]> = 
+			(* Problem: Atomic install takes list of IRs. IR is not exposed by builder. Extract by brute force - mirrors are omnipotent! *)
+			builders collect: [:b <ClassDeclarationBuilder> |
+					((ObjectMirror reflecting: b) getSlot: #intermediate) reflectee
+				]. |
+			^installIRs: irs into: ns
+		)
+		installIRs: classDecls <List[IntermediateClassDeclaration]> into: ns <Map[Symbol, Object]> ^<List[MixinMirror]> = (
+			classDecls do: [:ir <IntermediateClassDeclaration> |
+					| entry = ns at: ir simpleName ifAbsent: []. |
+					nil = entry ifFalse: [
+							entry isKindOfClass ifTrue: [ setMixinsOf: ir from: (mixinOf: entry) ]
+						]
+				].
+			^(AtomicInstaller new install: classDecls) collect: [:im <InstanceMixin> |
+					MixinMirror reflecting: im
+				]
+		)
+		setMixinsOf: ir <IntermediateClassDeclaration> from: mxn <InstanceMixin> = (
+			| mixinMap = Map new. |
+			ir existingMixin: mxn.
+			mxn _nestedMixins do: [:nm <InstanceMixin> | mixinMap at: nm _name put: nm ].
+			ir instanceSide nestedClasses do: [:ncir <IntermediateClassDeclaration> |
+					| entry = mixinMap at: ncir simpleName ifAbsent: []. |
+					nil = entry ifFalse: [ setMixinsOf: ncir from: entry ]
+				]
+		)
+	) : ()
 	public class ClassDeclarationBuilder fromIntermediate: ir = Object new (
 		|
 			private intermediate <IntermediateClassDeclaration> = ir.
@@ -628,24 +628,6 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 			(* Populate for incremental scope building. *)
 			^enclosingBuilder
 		)
-		public instanceSide ^<MixinBuilder> = (
-			| ir builder |
-			ir:: intermediate instanceSide.
-			builder:: ir builder.
-			nil = builder ifTrue: [
-					builder:: MixinBuilder fromIntermediate: ir.
-					ir builder: builder
-				].
-			^builder
-		)
-		public name = (
-			^intermediate simpleName
-		)
-		public source ^<String> = (
-			| sb = StringBuilder new. |
-			to: sb writeClassDeclaration: intermediate.
-			^sb asString
-		)
 		ensureIRForToplevel = (
 			(* The enclosing IR is computed lazily. Proior to installation, we need to be sure it exists all the way to the top level *)
 			
@@ -666,6 +648,24 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 			installer install: {outermost. }.
 			nil = intermediate existingMixin ifTrue: [ halt ].
 			^ClassDeclarationMirror reflecting: intermediate existingMixin
+		)
+		public instanceSide ^<MixinBuilder> = (
+			| ir builder |
+			ir:: intermediate instanceSide.
+			builder:: ir builder.
+			nil = builder ifTrue: [
+					builder:: MixinBuilder fromIntermediate: ir.
+					ir builder: builder
+				].
+			^builder
+		)
+		public name = (
+			^intermediate simpleName
+		)
+		public source ^<String> = (
+			| sb = StringBuilder new. |
+			to: sb writeClassDeclaration: intermediate.
+			^sb asString
 		)
 		private to: sb writeClassDeclaration: declIR = (
 			(* Members come out in CANONICAL order -- lazy slots, nested
@@ -911,26 +911,6 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 		public hash ^<Integer> = (
 			^mixin hash bitXor: class hash
 		)
-		public isKindOfClassHeaderMirror ^<Boolean> = (
-			^true
-		)
-		public name = (
-			^mixin _name
-		)
-		public preamble ^<Symbol> = (
-			(* :questionable: *)
-			
-			| headerAst |
-			nil = source ifTrue: [ ^nil ].
-			headerAst:: (parsing Parser for: source) advanceToken parseClassHeader.
-			^source copyFrom: headerAst start to: headerAst superConstructorCall end
-		)
-		public primaryFactorySelector ^<Symbol> = (
-			^mixin _primaryFactorySelector
-		)
-		public source ^<String> = (
-			^mixin _headerSource
-		)
 		instanceInitializer ^<_Method> = (
 			(* get the mixin's _methods and find the instance initializer *)
 			
@@ -943,8 +923,8 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 				].
 			shouldNotHappen
 		)
-		public metadata ^<Map[String, String]> = (
-			^parseMetadata metadata
+		public isKindOfClassHeaderMirror ^<Boolean> = (
+			^true
 		)
 		leftHandSide ^<String> = (
 			| scanner = parsing Scanner for: source. |
@@ -956,10 +936,27 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 			[ scanner tokenValue = '=' ] whileFalse: [ scanner advanceToken ].
 			^source copyFrom: 1 to: scanner tokenEnd - 1
 		)
+		public metadata ^<Map[String, String]> = (
+			^parseMetadata metadata
+		)
+		public name = (
+			^mixin _name
+		)
 		parseMetadata ^<MetadataParser> = (
 			| src <String> = leftHandSide. metadataParser <MetadataParser> = metadataParsing MetadataParser onSource: src. |
 			metadataParser gatherMetadataBackwards.
 			^metadataParser
+		)
+		public preamble ^<Symbol> = (
+			(* :questionable: *)
+			
+			| headerAst |
+			nil = source ifTrue: [ ^nil ].
+			headerAst:: (parsing Parser for: source) advanceToken parseClassHeader.
+			^source copyFrom: headerAst start to: headerAst superConstructorCall end
+		)
+		public primaryFactorySelector ^<Symbol> = (
+			^mixin _primaryFactorySelector
 		)
 		public selectors ^<List[Symbol]> = (
 			| initializer = instanceInitializer. |
@@ -979,6 +976,9 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 							(s indexOf: '`') > 0
 						]
 				]
+		)
+		public source ^<String> = (
+			^mixin _headerSource
 		)
 		public symbols ^<List[Symbol]> = (
 			| initializer = instanceInitializer. |
@@ -1011,6 +1011,9 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 			(is: reflectee identicalTo: (reflectees at: other)) ifFalse: [ ^false ].
 			^other isKindOfClassMirror
 		)
+		public allInstances ^<Array> = (
+			^class allInstancesOf: reflectee
+		)
 		public enclosingObject ^<ObjectMirror> = (
 			^ObjectMirror reflecting: (enclosingObjectOf: reflectee)
 		)
@@ -1022,6 +1025,10 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 		)
 		public isMeta ^<Boolean> = (
 			^Metaclass = (classOf: reflectee)
+		)
+		public lazySlots ^<Collection[MethodMirror]> = (
+			| cls <Behavior> results <Collection[MethodMirror]> |
+			^mixin lazySlots
 		)
 		public methods ^<Collection[MethodMirror]> = (
 			| cls <Behavior> results <Collection[MethodMirror]> |
@@ -1089,18 +1096,299 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 			nil = s ifTrue: [ ^nil ].
 			^ClassMirror reflecting: s
 		)
-		public allInstances ^<Array> = (
-			^class allInstancesOf: reflectee
-		)
-		public lazySlots ^<Collection[MethodMirror]> = (
-			| cls <Behavior> results <Collection[MethodMirror]> |
-			^mixin lazySlots
-		)
 	) : (
 		public allInstancesOf: b <Behavior> ^<Array> = (
 			(* :literalmessage: primitive: 96 *)
 			
 			halt
+		)
+	)
+	public class ClosureMirror reflecting: c <Closure> = Object new (
+		|
+			public reflectee <Closure> = c.
+			definingActivation <Activation> = definingActivationOf: c.
+		|
+		reflectees at: self put: c.
+	) (
+		public = other ^<Boolean> = (
+			(is: reflectee identicalTo: other reflectee) ifFalse: [ ^false ].
+			^other isKindOfClosureMirror
+		)
+		public definingMethod ^<MethodMirror> = (
+			(* can the defining activation be nil? *)
+			
+			^MethodMirror reflecting: (definingActivationOf: reflectee) method
+		)
+		public hash ^<Integer> = (
+			^(identityHashOf: reflectee) hash bitXor: class hash
+		)
+		public isDead ^<Boolean> = (
+			^definingActivation isDead
+		)
+		public isKindOfClosureMirror ^<Boolean> = (
+			^true
+		)
+		public receiver ^<ObjectMirror> = (
+			^ObjectMirror reflecting: definingActivation receiver
+		)
+		public source ^<String> = (
+			(* Crdue approximation. Need to find how to narrow it to the actual closure source *)
+			
+			^(definingActivationOf: reflectee) method source
+		)
+	) : ()
+	private class LazyMutableSlotGroup fromIntermediate: ir <IntermediateMixin> = Collection new (
+		|
+			private intermediate <IntermediateMixin> = ir.
+		|
+	) (
+		public addFromSource: source <String> = (
+			| iSlot <IntermediateLazySlot> |
+			iSlot:: compiler compileLazySlotSource: source within: intermediate builder.
+			intermediate checkNameConflictsForLazySlot: iSlot name
+				mutable: iSlot isMutable.
+			intermediate lazySlots removeAllSuchThat: [:ea | ea name = iSlot name ].
+			intermediate lazySlots add: iSlot.
+			^LazySlotBuilder reflecting: iSlot in: intermediate builder
+		)
+		public do: action = (
+			intermediate lazySlots do: [:intermediateLazySlot |
+					action value: (LazySlotBuilder reflecting: intermediateLazySlot
+							in: intermediate builder)
+				]
+		)
+		newForCollectUsingAdd: capacity = (
+			^List new: capacity
+		)
+		public removeMirror: m <LazySlotMirror> = (
+			intermediate lazySlots removeAllSuchThat: [:iSlot <IntermediateLazySlot> |
+					iSlot name = m name
+				].
+			m delete
+		)
+		public removeMirrorNamed: name <Symbol> = (
+			intermediate lazySlots removeAllSuchThat: [:iSlot <IntermediateLazySlot> |
+					iSlot name = name
+				]
+		)
+	) : ()
+	public class LazySlotActivationMirror reflecting: a <Activation> thread: t <Thread> = ActivationMirror reflecting: a
+		thread: t (
+		(* Mirror for the activation of a lazy slot. It takes care of computing the right sender, providing the current sourceRange considering the particular grammar , providing access to compiling the lazy slot code etc *)
+		
+	) (
+		public compile: newSource ifFail: onFail ^<Mirror> = (
+			[
+				| builder newMB |
+				builder:: MixinBuilder reflecting: definingMixin reflectee.
+				newMB:: builder lazySlots addFromSource: newSource.
+				builder declaration install.
+				^definingMixin lazySlots findMirrorNamed: newMB simpleName
+			] on: Error do: [:ex | ^onFail value: ex description ]
+		)
+		computeSender = (
+			| lowLevelSender |
+			lowLevelSender:: lowLevelActivationMirror sender sender.
+			
+			(* the first sender skips the main method for the lazy slot. It should not show in the debugger *)
+			lowLevelSender isNil ifTrue: [ ^nil ].
+			^threadMirror activationFromLowLevelActivation: lowLevelSender
+		)
+		public localNamesWithValuesDo: action <[:String :ObjectMirror | Object]> = (
+			(* lazy slots do not have local variables (temp or parameters) . It's just an expression *)
+			
+			^{}
+		)
+		public method = (
+			^definingMixin lazySlots findMirrorNamed: name
+		)
+		public name = (
+			^lowLevelActivationMirror sender selector
+		)
+		public selectorForParsing = (
+			^#lazySlotDecl
+		)
+		public sourceAvailable = (
+			^true
+		)
+		public sourceRange ^<Interval> = (
+			| methodRange |
+			methodRange:: lowLevelActivationMirror sourceRangeIn: threadMirror lowLevelThreadMirror.
+			methodRange isNil ifTrue: [ ^nil ].
+			^method rangeFromLazySlotExpressionToMethod: methodRange
+		)
+	) : (
+		public handleActivation: aLowLevelActivation <AcivationMirror> whenCreated: createdBlock whenContextUpdated: contextUpdatedBlock on: aThreadMirror = (
+			| isMainMethod mixinMirror tsMirror methodName isCachedValueEmpty newActivation |
+			methodName:: aLowLevelActivation method name.
+			mixinMirror:: aLowLevelActivation method definingMixin.
+			isMainMethod:: mixinMirror lazySlots includesMirrorNamed: methodName.
+			
+			(* setter *)
+			(methodName endsWith: ':') ifTrue: [
+					newActivation:: aThreadMirror lowLevelThreadMirror complete: aLowLevelActivation.
+					^contextUpdatedBlock value: newActivation
+				].
+			
+			(* getter *)
+			isMainMethod ifTrue: [
+					tsMirror:: mixinMirror lazySlots findMirrorNamed: methodName.
+					isCachedValueEmpty:: (aLowLevelActivation receiver getLazySlot: methodName) reflectee isNil.
+					newActivation:: isCachedValueEmpty ifTrue: [
+							aThreadMirror lowLevelThreadMirror step: aLowLevelActivation
+								untilReturnOrMethodOnTopNamed: tsMirror initMethodName
+						]
+						ifFalse: [
+							aThreadMirror lowLevelThreadMirror complete: aLowLevelActivation
+						].
+					^contextUpdatedBlock value: newActivation
+				]
+				ifFalse: [
+					^createdBlock value: (self on: aLowLevelActivation thread: aThreadMirror)
+				]
+		)
+		public handles: aLowLevelActivation <ActivationMirror> = (
+			| mixinMirror |
+			mixinMirror:: aLowLevelActivation method definingMixin.
+			^mixinMirror isMethodMirrorForLazySlot: aLowLevelActivation method
+		)
+	)
+	public class LazySlotBuilder reflecting: ir <IntermediateLazySlot> in: mb <MixinBuilder> = Object new (
+		|
+			public prvtIntermediate <IntermediateLazySlot> = ir.
+			prvtMixinBuilder <MixinBuilder> = mb.
+		|
+	) (
+		public accessModifer ^<Symbol> = (
+			^prvtIntermediate intermediateMainMethod accessModifier
+		)
+		public definingMixin ^<MixinBuilder> = (
+			^prvtMixinBuilder
+		)
+		public initMethodName = (
+			^intermediates IntermediateLazySlot initMethodNameForLazySlotNamed: name
+		)
+		public isMutable ^<Boolean> = (
+			^prvtIntermediate isMutable
+		)
+		public name = (
+			^prvtIntermediate name
+		)
+		public source ^<String> = (
+			^prvtIntermediate source
+		)
+	) : ()
+	public class LazySlotMirror reflecting: m <Symbol> in: em <MixinMirror> = Object new (
+		(* The mirror for a particular lazy slot. Every lazy slot consist of an underlying storage location (the cache) and 2-3 methods: 
+
+a. The getter, which tests if the slot is nil, and if so, calls the init method (see (b) below) to compute the value and set the underlying storage. In any case it returns the value stored in the slot.  This method is sometimes referred to as the the main method of the lazy slot.
+
+b. The init method, in charge of doing the actual computation. 
+
+c. If the slot is mutable, there will be a third method, which is an ordinary setter. *)
+		
+		|
+			reflectee <Symbol> = m.
+			enclosingMixinMirror <MixinMirror> = em.
+			public mainMethod <MethodMirror> = MethodMirror reflecting: (mixin _methods select: [:mtd |
+						mtd selector = m
+					]) first.
+		|
+	) (
+		public = other = (
+			^other isKindOfLazySlotMirror and: [ mainMethod = other mainMethod ]
+		)
+		public accessModifier ^<Symbol> = (
+			^mainMethod accessModifier
+		)
+		public cachedValueFor: anObjectMirror <ObjectMirror> ^<ObjectMirror> = (
+			^anObjectMirror getSlot: cacheSlotName
+		)
+		cacheSlotName ^<Symbol> = (
+			^intermediates IntermediateLazySlot slotNameForLazySlotNamed: name
+		)
+		public category ^<Symbol> = (
+			^class lazySlotsCategory
+		)
+		public definingMixin ^<MixinMirror> = (
+			^enclosingMixinMirror
+		)
+		public enclosingMixin = (
+			^enclosingMixinMirror reflectee
+		)
+		public hash ^<Integer> = (
+			^mainMethod hash
+		)
+		private initMethod = (
+			^MethodMirror reflecting: (mixin _methods select: [:mtd <Method> |
+						mtd selector = initMethodName
+					]) first
+		)
+		public initMethodName = (
+			^intermediates IntermediateLazySlot initMethodNameForLazySlotNamed: name
+		)
+		public isExpression ^<Boolean> = (
+			^false
+		)
+		public isKindOfLazySlotMirror = (
+			^true
+		)
+		public isMutable ^<Boolean> = (
+			(* What ensures an unrelated method of this name is not created *)
+			
+			^(mixin _methods select: [:mtd | mtd selector = (name , ':') ]) isEmpty not
+		)
+		public metadata ^<Map[String, String]> = (
+			^parseMetadata metadata
+		)
+		private mixin ^<Mixin> = (
+			^reflectees at: enclosingMixinMirror
+		)
+		public name ^<Symbol> = (
+			^reflectee
+		)
+		parseMetadata ^<MetadataParser> = (
+			| src <String> = source copyFrom: 1
+				to: (source indexOf: '=' startingAt: 1) - 1. metadataParser <MetadataParser> = metadataParsing MetadataParser onSource: src. |
+			metadataParser gatherMetadataBackwards.
+			^metadataParser
+		)
+		public rangeFromLazySlotExpressionToMethod: aRange = (
+			| parser tsAST methodAST returnAST offset returnSpace isReturning |
+			parser:: parsing Parser new.
+			tsAST:: parser lazySlotDecl parseString: source asString.
+			methodAST:: parser methodDecl parseString: initMethod getSource asString.
+			returnAST:: methodAST body statements first.
+			offset:: tsAST initializer start - returnAST expression start.
+			isReturning:: aRange first = returnAST start.
+			returnSpace:: isReturning ifTrue: [
+					returnAST expression start - returnAST start
+				]
+				ifFalse: [ 0 ].
+			^aRange first + offset + returnSpace to: aRange last + offset
+		)
+		public selectors ^<List[Symbol]> = (
+			^initMethod selectors
+			(* probably need to add reflectee, and remove initMethod name *)
+			
+		)
+		public setCachedValueFor: anObjectMirror <ObjectMirror> to: newValue <Object> ^<ObjectMirror> = (
+			^anObjectMirror setSlot: cacheSlotName to: newValue
+		)
+		public simpleName ^<Symbol> = (
+			^name
+		)
+		public source ^<String> = (
+			^mainMethod source
+		)
+		public symbols ^<List[Symbol]> = (
+			^initMethod symbols
+			(* probably need to add reflectee, and remove initMethod name *)
+			
+		)
+	) : (
+		public lazySlotsCategory = (
+			^#lazyslots
 		)
 	)
 	private class LocalSlotMirror name: n value: v = Object new (
@@ -1139,6 +1427,9 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 		public accessModifier ^<Symbol> = (
 			^method accessModifier
 		)
+		commonSend: offset = (
+			^{#+. #-. #<. #>. #<=. #>=. #=. #~=. #*. #/. #\\. #@. #bitShift:. #//. #bitAnd:. #bitOr:. #at:. #at:put:. #size. #next. #nextPut:. #atEnd. #==. #class. #blockCopy:. #value. #value:. #do:. #new. #new:. #x. #y. } at: offset
+		)
 		public definingMixin ^<MixinMirror> = (
 			^MixinMirror reflecting: method mixin
 		)
@@ -1148,19 +1439,19 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 		public isKindOfMethodMirror ^<Boolean> = (
 			^true
 		)
+		public isPrimitive ^<Boolean> = (
+			(* This should not exist, because primitives should not exist. But while we have them, we need to be able to tell. *)
+			
+			^method primitive ~= 0
+		)
 		public isSynthetic ^<Boolean> = (
 			^method isSynthetic
 		)
-		public name = (
-			^method selector
-		)
-		public source ^<String> = (
-			(* :todo: Should this be async? *)
-			
-			^method source
-		)
 		public metadata ^<Map[String, String]> = (
 			^parseMetadata metadata
+		)
+		public name = (
+			^method selector
 		)
 		parseMetadata ^<MetadataParser> = (
 			| src <String> = source copyFrom: 1
@@ -1168,13 +1459,10 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 			metadataParser gatherMetadataBackwards.
 			^metadataParser
 		)
-		sizeOf: bytecode = (
-			bytecode <= 223 ifTrue: [ ^1 ].
-			bytecode <= 248 ifTrue: [ ^2 ].
-			^3
-		)
-		commonSend: offset = (
-			^{#+. #-. #<. #>. #<=. #>=. #=. #~=. #*. #/. #\\. #@. #bitShift:. #//. #bitAnd:. #bitOr:. #at:. #at:put:. #size. #next. #nextPut:. #atEnd. #==. #class. #blockCopy:. #value. #value:. #do:. #new. #new:. #x. #y. } at: offset
+		public primitive ^<Boolean> = (
+			(* This should not exist, because primitives should not exist. But while we have them, we need to be able to tell. *)
+			
+			^method primitive
 		)
 		public selectors ^<List[Symbol]> = (
 			| pc ::= 1. extA ::= 0. bytecode = method bytecode. result <Set[Symbol]> = Set new. |
@@ -1213,20 +1501,20 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 				].
 			^List withAll: result asArray
 		)
+		sizeOf: bytecode = (
+			bytecode <= 223 ifTrue: [ ^1 ].
+			bytecode <= 248 ifTrue: [ ^2 ].
+			^3
+		)
+		public source ^<String> = (
+			(* :todo: Should this be async? *)
+			
+			^method source
+		)
 		public symbols ^<List[Symbol]> = (
 			| result <List[Symbol]> = List new. |
 			method literals do: [:s | s isKindOfString ifTrue: [ result add: s ] ].
 			^result
-		)
-		public isPrimitive ^<Boolean> = (
-			(* This should not exist, because primitives should not exist. But while we have them, we need to be able to tell. *)
-			
-			^method primitive ~= 0
-		)
-		public primitive ^<Boolean> = (
-			(* This should not exist, because primitives should not exist. But while we have them, we need to be able to tell. *)
-			
-			^method primitive
 		)
 	) : ()
 	private class MirrorGroup wrapping: collection = Collection new (
@@ -1261,10 +1549,10 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 			private intermediate <IntermediateMixin> = ir.
 		|
 	) (
+		lazy public lazySlots = LazyMutableSlotGroup fromIntermediate: intermediate.
 		lazy public methods = MutableMethodGroup fromIntermediate: intermediate.
 		lazy public nestedClasses = MutableNestedClassGroup fromIntermediate: intermediate.
 		lazy public slots = MutableSlotGroup fromIntermediate: intermediate.
-		lazy public lazySlots = LazyMutableSlotGroup fromIntermediate: intermediate.
 		public declaration ^<ClassDeclarationBuilder> = (
 			^intermediate declaration builder
 		)
@@ -1281,6 +1569,22 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 		public = other ^<Boolean> = (
 			mixin = (reflectees at: other) ifFalse: [ ^false ].
 			^other isKindOfMixinMirror
+		)
+		public applications ^<Collection[ClassMirror]> = (
+			(* Answer a collection of all classes that have the reflectee as their direct mixin. Note this does not include classes whose superclasses have the reflectee as their mixin. The order of classes is undefined. The result may include classes that are otherwise unreachable because garbage collection has not completed since the last reference was erased. *)
+			
+			| result = List new. applications <WeakArray> |
+			applications:: (isMeta ifTrue: [ mixin _instanceMixin ] ifFalse: [ mixin ]) _applications.
+			nil = applications ifTrue: [ ^result ].
+			applications do: [:application |
+					nil = application ifFalse: [
+							result add: (ClassMirror reflecting: (isMeta ifTrue: [
+											classOf: application
+										]
+										ifFalse: [ application ]))
+						]
+				].
+			^result
 		)
 		public asBuilder ^<MixinBuilder> = (
 			^isMeta ifTrue: [ declaration asBuilder classSide ]
@@ -1306,57 +1610,6 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 		public isMeta ^<Boolean> = (
 			^mixin isMeta
 		)
-		public name ^<String> = (
-			^mixin _name
-		)
-		public nestedClasses ^<Collection[ClassDeclarationMirror]> = (
-			| results <Collection[ClassDeclarationMirror]> |
-			results:: List new.
-			mixin _nestedMixins do: [:nestedMixin <InstanceMixin> |
-					results add: (ClassDeclarationMirror reflecting: nestedMixin)
-				].
-			^MirrorGroup wrapping: results
-		)
-		public primaryFactorySelector ^<Symbol> = (
-			^isMeta ifFalse: [ mixin _primaryFactorySelector ]
-				ifTrue: [ mixin _instanceMixin _primaryFactorySelector ]
-		)
-		public primaryFactoryMethod ^<MethodMirror> = (
-			(* Return the MethodMirror for the primary factory, even if it's synthetic.
-     Works whether called on instance mixin or class mixin. *)
-			
-			| selector <Symbol> = primaryFactorySelector. classMixin <AbstractMixin> = isMeta ifTrue: [
-					mixin
-				]
-				ifFalse: [ mixin _classMixin ]. methods = classMixin _methods. |
-			methods do: [:method |
-					method selector = selector ifTrue: [ ^MethodMirror reflecting: method ]
-				]
-		)
-		public slots ^<Collection[SlotDeclarationMirror]> = (
-			| results = List new. |
-			mixin _slots do: [:slotDescriptor |
-					| slotName = slotDescriptor at: 1. isMutable = slotDescriptor at: 2. accessModifier = slotDescriptor at: 3. |
-					0 = (slotName indexOf: '`') ifTrue: 
-						(* not synthetic *)
-						[
-							results add: (SlotDeclarationMirror name: slotName
-									isMutable: isMutable
-									accessModifier: accessModifier
-									mixin: self)
-						]
-				].
-			^MirrorGroup wrapping: results
-		)
-		public methods ^<MirrorGroup[MethodMirror]> = (
-			| results = List new. |
-			mixin _methods do: [:method |
-					method isSynthetic ifFalse: [
-							results add: (MethodMirror reflecting: method)
-						]
-				].
-			^MirrorGroup wrapping: results
-		)
 		public lazySlots = (
 			| results = List new. |
 			
@@ -1374,21 +1627,56 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 				].
 			^MirrorGroup wrapping: results
 		)
-		public applications ^<Collection[ClassMirror]> = (
-			(* Answer a collection of all classes that have the reflectee as their direct mixin. Note this does not include classes whose superclasses have the reflectee as their mixin. The order of classes is undefined. The result may include classes that are otherwise unreachable because garbage collection has not completed since the last reference was erased. *)
-			
-			| result = List new. applications <WeakArray> |
-			applications:: (isMeta ifTrue: [ mixin _instanceMixin ] ifFalse: [ mixin ]) _applications.
-			nil = applications ifTrue: [ ^result ].
-			applications do: [:application |
-					nil = application ifFalse: [
-							result add: (ClassMirror reflecting: (isMeta ifTrue: [
-											classOf: application
-										]
-										ifFalse: [ application ]))
+		public methods ^<MirrorGroup[MethodMirror]> = (
+			| results = List new. |
+			mixin _methods do: [:method |
+					method isSynthetic ifFalse: [
+							results add: (MethodMirror reflecting: method)
 						]
 				].
-			^result
+			^MirrorGroup wrapping: results
+		)
+		public name ^<String> = (
+			^mixin _name
+		)
+		public nestedClasses ^<Collection[ClassDeclarationMirror]> = (
+			| results <Collection[ClassDeclarationMirror]> |
+			results:: List new.
+			mixin _nestedMixins do: [:nestedMixin <InstanceMixin> |
+					results add: (ClassDeclarationMirror reflecting: nestedMixin)
+				].
+			^MirrorGroup wrapping: results
+		)
+		public primaryFactoryMethod ^<MethodMirror> = (
+			(* Return the MethodMirror for the primary factory, even if it's synthetic.
+     Works whether called on instance mixin or class mixin. *)
+			
+			| selector <Symbol> = primaryFactorySelector. classMixin <AbstractMixin> = isMeta ifTrue: [
+					mixin
+				]
+				ifFalse: [ mixin _classMixin ]. methods = classMixin _methods. |
+			methods do: [:method |
+					method selector = selector ifTrue: [ ^MethodMirror reflecting: method ]
+				]
+		)
+		public primaryFactorySelector ^<Symbol> = (
+			^isMeta ifFalse: [ mixin _primaryFactorySelector ]
+				ifTrue: [ mixin _instanceMixin _primaryFactorySelector ]
+		)
+		public slots ^<Collection[SlotDeclarationMirror]> = (
+			| results = List new. |
+			mixin _slots do: [:slotDescriptor |
+					| slotName = slotDescriptor at: 1. isMutable = slotDescriptor at: 2. accessModifier = slotDescriptor at: 3. |
+					0 = (slotName indexOf: '`') ifTrue: 
+						(* not synthetic *)
+						[
+							results add: (SlotDeclarationMirror name: slotName
+									isMutable: isMutable
+									accessModifier: accessModifier
+									mixin: self)
+						]
+				].
+			^MirrorGroup wrapping: results
 		)
 	) : ()
 	private class MutableMethodGroup fromIntermediate: ir = Collection new (
@@ -1455,21 +1743,6 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 			idecl builder: builder.
 			^builder
 		)
-		private setExistingMixinOf: ir <IntermediateClassDeclaration> from: mxn <InstanceMixin> = (
-			(* Link a rebuilt nested class IR (and, recursively, its own nested
-	   classes) to the corresponding existing mixin of the same name, so
-	   atomic install treats it as an update of the existing class —
-	   migrating that class and its instances — rather than a brand-new
-	   class. Mirrors AtomicInstallWrapper>>setMixinsOf:from:. *)
-			
-			| mixinMap = Map new. |
-			ir existingMixin: mxn.
-			mxn _nestedMixins do: [:nm <InstanceMixin> | mixinMap at: nm _name put: nm ].
-			ir instanceSide nestedClasses do: [:ncir <IntermediateClassDeclaration> |
-					| entry = mixinMap at: ncir simpleName ifAbsent: [ ]. |
-					nil = entry ifFalse: [ setExistingMixinOf: ncir from: entry ]
-				]
-		)
 		public do: action = (
 			| enclosingExistingMixin <InstanceMixin> = intermediate declaration existingMixin. |
 			intermediate nestedClasses do: [:intermediateClassDeclaration |
@@ -1508,6 +1781,21 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 					inested simpleName = name
 				]
 		)
+		private setExistingMixinOf: ir <IntermediateClassDeclaration> from: mxn <InstanceMixin> = (
+			(* Link a rebuilt nested class IR (and, recursively, its own nested
+	   classes) to the corresponding existing mixin of the same name, so
+	   atomic install treats it as an update of the existing class —
+	   migrating that class and its instances — rather than a brand-new
+	   class. Mirrors AtomicInstallWrapper>>setMixinsOf:from:. *)
+			
+			| mixinMap = Map new. |
+			ir existingMixin: mxn.
+			mxn _nestedMixins do: [:nm <InstanceMixin> | mixinMap at: nm _name put: nm ].
+			ir instanceSide nestedClasses do: [:ncir <IntermediateClassDeclaration> |
+					| entry = mixinMap at: ncir simpleName ifAbsent: []. |
+					nil = entry ifFalse: [ setExistingMixinOf: ncir from: entry ]
+				]
+		)
 	) : ()
 	private class MutableSlotGroup fromIntermediate: ir = Collection new (
 		|
@@ -1535,6 +1823,9 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 		public = other ^<Boolean> = (
 			(is: reflectee identicalTo: (reflectees at: other)) ifFalse: [ ^false ].
 			^other isKindOfObjectMirror
+		)
+		public compileExpression: expression <String> scope: rawScope <Map[Symbol, Object]> ^<MethodMirror> = (
+			^MethodMirror reflecting: (compileExpression: expression with: rawScope)
 		)
 		private compileExpression: expression <String> with: rawScope <Map[Symbol, Object]> ^<Method> = (
 			| receiverClass mixinMirror imethod result |
@@ -1577,6 +1868,11 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 		public getClass ^<ClassMirror> = (
 			^ClassMirror reflecting: (classOf: reflectee)
 		)
+		public getLazySlot: name = (
+			| rawName = intermediatesX IntermediateLazySlot slotNameForLazySlotNamed: name. index = indexOfSlotNamed: rawName
+				in: (classOf: reflectee). raw = slotOf: reflectee at: index. |
+			^ObjectMirror reflecting: raw
+		)
 		public getSlot: name = (
 			| index raw |
 			index:: indexOfSlotNamed: name in: (classOf: reflectee).
@@ -1604,11 +1900,6 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 		public isKindOfObjectMirror ^<Boolean> = (
 			^true
 		)
-		public setSlot: name to: value = (
-			| index raw |
-			index:: indexOfSlotNamed: name in: (classOf: reflectee).
-			slotOf: reflectee at: index put: value
-		)
 		public perform: selector <String> with: args <Array[Object]> ifFail: fblk <[:Exception | Object]> ^<ObjectMirror> = (
 			| msg <Message> = Message selector: selector arguments: args. |
 			^[ msg sendTo: reflectee ] on: Error do: fblk
@@ -1633,17 +1924,14 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 			thread suspendedActivation: simulator activation.
 			^ThreadMirror reflecting: thread
 		)
-		public getLazySlot: name = (
-			| rawName = intermediatesX IntermediateLazySlot slotNameForLazySlotNamed: name. index = indexOfSlotNamed: rawName
-				in: (classOf: reflectee). raw = slotOf: reflectee at: index. |
-			^ObjectMirror reflecting: raw
-		)
-		public compileExpression: expression <String> scope: rawScope <Map[Symbol, Object]> ^<MethodMirror> = (
-			^MethodMirror reflecting: (compileExpression: expression with: rawScope)
-		)
 		public setLazySlot: name to: value = (
 			| rawName = intermediatesX IntermediateLazySlot slotNameForLazySlotNamed: name. index = indexOfSlotNamed: rawName
 				in: (classOf: reflectee). |
+			slotOf: reflectee at: index put: value
+		)
+		public setSlot: name to: value = (
+			| index raw |
+			index:: indexOfSlotNamed: name in: (classOf: reflectee).
 			slotOf: reflectee at: index put: value
 		)
 	) : ()
@@ -2616,9 +2904,6 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 		|
 		reflectees at: self put: thread.
 	) (
-		reflectee = (
-			^thread
-		)
 		public = other ^<Boolean> = (
 			(is: reflectee identicalTo: (reflectees at: other)) ifFalse: [ ^false ].
 			^other isKindOfThreadMirror
@@ -2644,6 +2929,9 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 		public isTerminated ^<Boolean> = (
 			^thread state = #terminated
 		)
+		reflectee = (
+			^thread
+		)
 		public result ^<ObjectMirror | nil> = (
 			thread state = #fulfilled ifTrue: [ ^ObjectMirror reflecting: thread result ].
 			thread state = #broken ifTrue: [ ^ObjectMirror reflecting: thread result ].
@@ -2666,296 +2954,13 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 			thread terminate
 		)
 	) : ()
-	public class ClosureMirror reflecting: c <Closure> = Object new (
-		|
-			public reflectee <Closure> = c.
-			definingActivation <Activation> = definingActivationOf: c.
-		|
-		reflectees at: self put: c.
-	) (
-		public = other ^<Boolean> = (
-			(is: reflectee identicalTo: other reflectee) ifFalse: [ ^false ].
-			^other isKindOfClosureMirror
-		)
-		public hash ^<Integer> = (
-			^(identityHashOf: reflectee) hash bitXor: class hash
-		)
-		public isDead ^<Boolean> = (
-			^definingActivation isDead
-		)
-		public isKindOfClosureMirror ^<Boolean> = (
-			^true
-		)
-		public source ^<String> = (
-			(* Crdue approximation. Need to find how to narrow it to the actual closure source *)
-			
-			^(definingActivationOf: reflectee) method source
-		)
-		public definingMethod ^<MethodMirror> = (
-			(* can the defining activation be nil? *)
-			
-			^MethodMirror reflecting: (definingActivationOf: reflectee) method
-		)
-		public receiver ^<ObjectMirror> = (
-			^ObjectMirror reflecting: definingActivation receiver
-		)
-	) : ()
-	public class LazySlotMirror reflecting: m <Symbol> in: em <MixinMirror> = Object new (
-		(* The mirror for a particular lazy slot. Every lazy slot consist of an underlying storage location (the cache) and 2-3 methods: 
-
-a. The getter, which tests if the slot is nil, and if so, calls the init method (see (b) below) to compute the value and set the underlying storage. In any case it returns the value stored in the slot.  This method is sometimes referred to as the the main method of the lazy slot.
-
-b. The init method, in charge of doing the actual computation. 
-
-c. If the slot is mutable, there will be a third method, which is an ordinary setter. *)
-		
-		|
-			reflectee <Symbol> = m.
-			enclosingMixinMirror <MixinMirror> = em.
-			public mainMethod <MethodMirror> = MethodMirror reflecting: (mixin _methods select: [:mtd |
-						mtd selector = m
-					]) first.
-		|
-	) (
-		public accessModifier ^<Symbol> = (
-			^mainMethod accessModifier
-		)
-		public category ^<Symbol> = (
-			^class lazySlotsCategory
-		)
-		public enclosingMixin = (
-			^enclosingMixinMirror reflectee
-		)
-		public initMethodName = (
-			^intermediates IntermediateLazySlot initMethodNameForLazySlotNamed: name
-		)
-		public isExpression ^<Boolean> = (
-			^false
-		)
-		public isKindOfLazySlotMirror = (
-			^true
-		)
-		public name ^<Symbol> = (
-			^reflectee
-		)
-		public setCachedValueFor: anObjectMirror <ObjectMirror> to: newValue <Object> ^<ObjectMirror> = (
-			^anObjectMirror setSlot: cacheSlotName to: newValue
-		)
-		parseMetadata ^<MetadataParser> = (
-			| src <String> = source copyFrom: 1
-				to: (source indexOf: '=' startingAt: 1) - 1. metadataParser <MetadataParser> = metadataParsing MetadataParser onSource: src. |
-			metadataParser gatherMetadataBackwards.
-			^metadataParser
-		)
-		public metadata ^<Map[String, String]> = (
-			^parseMetadata metadata
-		)
-		public cachedValueFor: anObjectMirror <ObjectMirror> ^<ObjectMirror> = (
-			^anObjectMirror getSlot: cacheSlotName
-		)
-		private mixin ^<Mixin> = (
-			^reflectees at: enclosingMixinMirror
-		)
-		public simpleName ^<Symbol> = (
-			^name
-		)
-		public selectors ^<List[Symbol]> = (
-			^initMethod selectors
-			(* probably need to add reflectee, and remove initMethod name *)
-			
-		)
-		cacheSlotName ^<Symbol> = (
-			^intermediates IntermediateLazySlot slotNameForLazySlotNamed: name
-		)
-		public isMutable ^<Boolean> = (
-			(* What ensures an unrelated method of this name is not created *)
-			
-			^(mixin _methods select: [:mtd | mtd selector = (name , ':') ]) isEmpty not
-		)
-		public definingMixin ^<MixinMirror> = (
-			^enclosingMixinMirror
-		)
-		public rangeFromLazySlotExpressionToMethod: aRange = (
-			| parser tsAST methodAST returnAST offset returnSpace isReturning |
-			parser:: parsing Parser new.
-			tsAST:: parser lazySlotDecl parseString: source asString.
-			methodAST:: parser methodDecl parseString: initMethod getSource asString.
-			returnAST:: methodAST body statements first.
-			offset:: tsAST initializer start - returnAST expression start.
-			isReturning:: aRange first = returnAST start.
-			returnSpace:: isReturning ifTrue: [
-					returnAST expression start - returnAST start
-				]
-				ifFalse: [ 0 ].
-			^aRange first + offset + returnSpace to: aRange last + offset
-		)
-		private initMethod = (
-			^MethodMirror reflecting: (mixin _methods select: [:mtd <Method> |
-						mtd selector = initMethodName
-					]) first
-		)
-		public source ^<String> = (
-			^mainMethod source
-		)
-		public hash ^<Integer> = (
-			^mainMethod hash
-		)
-		public = other = (
-			^other isKindOfLazySlotMirror and: [ mainMethod = other mainMethod ]
-		)
-		public symbols ^<List[Symbol]> = (
-			^initMethod symbols
-			(* probably need to add reflectee, and remove initMethod name *)
-			
-		)
-	) : (
-		public lazySlotsCategory = (
-			^#lazyslots
-		)
-	)
-	public class LazySlotBuilder reflecting: ir <IntermediateLazySlot> in: mb <MixinBuilder> = Object new (
-		|
-			public prvtIntermediate <IntermediateLazySlot> = ir.
-			prvtMixinBuilder <MixinBuilder> = mb.
-		|
-	) (
-		public source ^<String> = (
-			^prvtIntermediate source
-		)
-		public name = (
-			^prvtIntermediate name
-		)
-		public accessModifer ^<Symbol> = (
-			^prvtIntermediate intermediateMainMethod accessModifier
-		)
-		public isMutable ^<Boolean> = (
-			^prvtIntermediate isMutable
-		)
-		public initMethodName = (
-			^intermediates IntermediateLazySlot initMethodNameForLazySlotNamed: name
-		)
-		public definingMixin ^<MixinBuilder> = (
-			^prvtMixinBuilder
-		)
-	) : ()
-	public class LazySlotActivationMirror reflecting: a <Activation> thread: t <Thread> = ActivationMirror reflecting: a
-		thread: t (
-		(* Mirror for the activation of a lazy slot. It takes care of computing the right sender, providing the current sourceRange considering the particular grammar , providing access to compiling the lazy slot code etc *)
-		
-	) (
-		public compile: newSource ifFail: onFail ^<Mirror> = (
-			[
-				| builder newMB |
-				builder:: MixinBuilder reflecting: definingMixin reflectee.
-				newMB:: builder lazySlots addFromSource: newSource.
-				builder declaration install.
-				^definingMixin lazySlots findMirrorNamed: newMB simpleName
-			] on: Error do: [:ex | ^onFail value: ex description ]
-		)
-		public localNamesWithValuesDo: action <[:String :ObjectMirror | Object]> = (
-			(* lazy slots do not have local variables (temp or parameters) . It's just an expression *)
-			
-			^{}
-		)
-		public method = (
-			^definingMixin lazySlots findMirrorNamed: name
-		)
-		public name = (
-			^lowLevelActivationMirror sender selector
-		)
-		public selectorForParsing = (
-			^#lazySlotDecl
-		)
-		public sourceAvailable = (
-			^true
-		)
-		public sourceRange ^<Interval> = (
-			| methodRange |
-			methodRange:: lowLevelActivationMirror sourceRangeIn: threadMirror lowLevelThreadMirror.
-			methodRange isNil ifTrue: [ ^nil ].
-			^method rangeFromLazySlotExpressionToMethod: methodRange
-		)
-		computeSender = (
-			| lowLevelSender |
-			lowLevelSender:: lowLevelActivationMirror sender sender.
-			
-			(* the first sender skips the main method for the lazy slot. It should not show in the debugger *)
-			lowLevelSender isNil ifTrue: [ ^nil ].
-			^threadMirror activationFromLowLevelActivation: lowLevelSender
-		)
-	) : (
-		public handleActivation: aLowLevelActivation <AcivationMirror> whenCreated: createdBlock whenContextUpdated: contextUpdatedBlock on: aThreadMirror = (
-			| isMainMethod mixinMirror tsMirror methodName isCachedValueEmpty newActivation |
-			methodName:: aLowLevelActivation method name.
-			mixinMirror:: aLowLevelActivation method definingMixin.
-			isMainMethod:: mixinMirror lazySlots includesMirrorNamed: methodName.
-			
-			(* setter *)
-			(methodName endsWith: ':') ifTrue: [
-					newActivation:: aThreadMirror lowLevelThreadMirror complete: aLowLevelActivation.
-					^contextUpdatedBlock value: newActivation
-				].
-			
-			(* getter *)
-			isMainMethod ifTrue: [
-					tsMirror:: mixinMirror lazySlots findMirrorNamed: methodName.
-					isCachedValueEmpty:: (aLowLevelActivation receiver getLazySlot: methodName) reflectee isNil.
-					newActivation:: isCachedValueEmpty ifTrue: [
-							aThreadMirror lowLevelThreadMirror step: aLowLevelActivation
-								untilReturnOrMethodOnTopNamed: tsMirror initMethodName
-						]
-						ifFalse: [
-							aThreadMirror lowLevelThreadMirror complete: aLowLevelActivation
-						].
-					^contextUpdatedBlock value: newActivation
-				]
-				ifFalse: [
-					^createdBlock value: (self on: aLowLevelActivation thread: aThreadMirror)
-				]
-		)
-		public handles: aLowLevelActivation <ActivationMirror> = (
-			| mixinMirror |
-			mixinMirror:: aLowLevelActivation method definingMixin.
-			^mixinMirror isMethodMirrorForLazySlot: aLowLevelActivation method
-		)
-	)
-	private class LazyMutableSlotGroup fromIntermediate: ir <IntermediateMixin> = Collection new (
-		|
-			private intermediate <IntermediateMixin> = ir.
-		|
-	) (
-		newForCollectUsingAdd: capacity = (
-			^List new: capacity
-		)
-		public do: action = (
-			intermediate lazySlots do: [:intermediateLazySlot |
-					action value: (LazySlotBuilder reflecting: intermediateLazySlot
-							in: intermediate builder)
-				]
-		)
-		public removeMirrorNamed: name <Symbol> = (
-			intermediate lazySlots removeAllSuchThat: [:iSlot <IntermediateLazySlot> |
-					iSlot name = name
-				]
-		)
-		public removeMirror: m <LazySlotMirror> = (
-			intermediate lazySlots removeAllSuchThat: [:iSlot <IntermediateLazySlot> |
-					iSlot name = m name
-				].
-			m delete
-		)
-		public addFromSource: source <String> = (
-			| iSlot <IntermediateLazySlot> |
-			iSlot:: compiler compileLazySlotSource: source within: intermediate builder.
-			intermediate checkNameConflictsForLazySlot: iSlot name
-				mutable: iSlot isMutable.
-			intermediate lazySlots removeAllSuchThat: [:ea | ea name = iSlot name ].
-			intermediate lazySlots add: iSlot.
-			^LazySlotBuilder reflecting: iSlot in: intermediate builder
-		)
-	) : ()
 	private allInstancesOf: cls = (
 		(* :literalmessage: primitive: 96 *)
+		
+		halt
+	)
+	private allocate: cls = (
+		(* :literalmessage: primitive: 34 *)
 		
 		halt
 	)
@@ -2974,10 +2979,71 @@ c. If the slot is mutable, there will be a third method, which is an ordinary se
 				(isCanonical: s) ifTrue: [ action value: s ]
 			]
 	)
-	private allocate: cls = (
-		(* :literalmessage: primitive: 34 *)
-		
-		halt
+	buildIntermediate: i <IntermediateMixin> from: mixin <AbstractMixin> within: ec = (
+		| initializers = List new. lazySlotGetters <Map[Symbol, IntermediateMethod]> = Map new. lazySlotInits <Map[Symbol, IntermediateMethod]> = Map new. lazySlotSetters <Map[Symbol, IntermediateMethod]> = Map new. |
+		mixin _methods do: [:method <Method> |
+				| selector <Symbol> = method selector. imethod <IntermediateMethod> = intermediates IntermediateMethod new. |
+				imethod method: method.
+				imethod methodMixin: mixin.
+				imethod selector: selector.
+				imethod accessModifier: method accessModifier.
+				imethod isSynthetic: method isSynthetic.
+				imethod source: method source.
+				(isSubinitializerSelector: selector) ifTrue: [ initializers add: imethod ].
+				method isLazySlotMethod ifTrue: [
+						| ls <Symbol> = lazySlotNameFromMethod: method. |
+						imethod isLazySlotMethod: true.
+						selector = ls ifTrue: [ lazySlotGetters at: ls put: imethod ]
+							ifFalse: [
+								(selector indexOf: '`method') ~= 0 ifTrue: [
+										lazySlotInits at: ls put: imethod
+									]
+									ifFalse: [ lazySlotSetters at: ls put: imethod ]
+							]
+					].
+				imethod isSynthetic ifFalse: [ i methods add: imethod ]
+			].
+		lazySlotGetters do: [:lg <IntermediateMethod> |
+				| lazySlot <IntermediateLazySlot> = intermediates IntermediateLazySlot new. s <Symbol> = lg selector. |
+				lazySlot intermediateMainMethod: lg;
+					intermediateInitMethod: (lazySlotInits at: s);
+					intermediateSetterMethod: (lazySlotSetters at: s ifAbsent: []).
+				i lazySlots add: lazySlot
+			].
+		mixin isMeta ifTrue: [
+				| factoryName <Symbol> factoryM <Method> factoryIR <IntermediateMethod> |
+				factoryName:: mixin _instanceMixin _primaryFactorySelector.
+				factoryM:: mixin _methods detect: [:ea | ea selector = factoryName ].
+				factoryIR:: intermediates IntermediateMethod new.
+				factoryIR method: factoryM.
+				factoryIR methodMixin: mixin.
+				factoryIR selector: factoryName.
+				factoryIR accessModifier: factoryM accessModifier.
+				factoryIR isSynthetic: true.
+				i declaration factory: factoryIR.
+				^self
+			].
+		i declaration initializers: initializers.
+		mixin _slots do: [:tuple <{Symbol. Boolean. Symbol}> |
+				| slot <IntermediateSlotDeclaration> = intermediates IntermediateSlotDeclaration new. |
+				slot name: (tuple at: 1).
+				slot isMutable: (tuple at: 2).
+				slot accessModifier: (tuple at: 3).
+				(isSyntheticSlotSelector: slot name) ifFalse: [ i slots add: slot ]
+			].
+		mixin _nestedMixins do: [:nestedMixin <InstanceMixin> |
+				| nestedIR <IntermediateClassDeclaration> accessorM <Method> accessorIR <IntermediateMethod> |
+				nestedIR:: buildIntermediateFor: nestedMixin within: ec.
+				i nestedClasses add: nestedIR.
+				accessorM:: mixin _methods detect: [:ea | ea selector = nestedIR simpleName ].
+				accessorIR:: intermediates IntermediateMethod new.
+				accessorIR method: accessorM.
+				accessorIR methodMixin: mixin.
+				accessorIR selector: nestedIR simpleName.
+				accessorIR accessModifier: accessorM accessModifier.
+				accessorIR isSynthetic: true.
+				nestedIR accessor: accessorIR
+			]
 	)
 	buildIntermediateFor: mixin <InstanceMixin> within: ec <ICD> ^<IntermediateClassDeclaration> = (
 		| i = intermediates IntermediateClassDeclaration new. |
@@ -3000,6 +3066,19 @@ c. If the slot is mutable, there will be a third method, which is an ordinary se
 	public compiler = (
 		nil = compilerX ifTrue: [ constructCompiler ].
 		^compilerX
+	)
+	private constructCompiler = (
+		| asts compilation |
+		asts:: namespace NewspeakASTs usingPlatform: cachedPlatform.
+		parsingX:: namespace NewspeakPredictiveParsing usingPlatform: cachedPlatform
+			asts: asts.
+		intermediatesX:: namespace Intermediates usingPlatform: cachedPlatform
+			internalKernel: internalKernel.
+		compilation:: namespace Newspeak2PrimordialSoupCompilation usingPlatform: cachedPlatform
+			asts: asts
+			newspeakParser: parsingX
+			intermediates: intermediatesX.
+		compilerX:: compilation Compiler new
 	)
 	private copiedOf: closure <Closure> at: index <Integer> ^<Object> = (
 		(* :literalmessage: primitive: 77 *)
@@ -3030,6 +3109,14 @@ c. If the slot is mutable, there will be a third method, which is an ordinary se
 	)
 	private enclosingObjectOf: behavior = (
 		^self slotOf: behavior at: 3
+	)
+	foldedRuneOf: s <String> at: i <Integer> ^<Integer> = (
+		(* The rune at i with an ASCII capital lowered; see
+	   memberNameLessOrEqual:than: for why ASCII is the whole domain. *)
+		
+		| r = s runeAt: i. |
+		(r >= 65 and: [ r <= 90 ]) ifTrue: [ ^r + 32 ].
+		^r
 	)
 	private formatOf: behavior = (
 		^self slotOf: behavior at: 6
@@ -3083,116 +3170,6 @@ c. If the slot is mutable, there will be a third method, which is an ordinary se
 	private isSyntheticSlotSelector: selector = (
 		^selector endsWith: '`slot'
 	)
-	private methodsOf: behavior = (
-		^self slotOf: behavior at: 2
-	)
-	private mixinOf: behavior = (
-		^self slotOf: behavior at: 4
-	)
-	private numCopiedOf: closure <Closure> ^<Integer> = (
-		(* :literalmessage: primitive: 70 *)
-		
-		halt
-	)
-	private parsing = (
-		nil = parsingX ifTrue: [ constructCompiler ].
-		^parsingX
-	)
-	private slotOf: object at: index = (
-		(* :literalmessage: primitive: 35 *)
-		
-		halt
-	)
-	private slotOf: object at: index put: value = (
-		(* :literalmessage: primitive: 36 *)
-		
-		halt
-	)
-	private subclassesOf: klass = (
-		^self slotOf: klass at: 8
-	)
-	private superclassOf: behavior = (
-		^self slotOf: behavior at: 1
-	)
-	private constructCompiler = (
-		| asts compilation |
-		asts:: namespace NewspeakASTs usingPlatform: cachedPlatform.
-		parsingX:: namespace NewspeakPredictiveParsing usingPlatform: cachedPlatform
-			asts: asts.
-		intermediatesX:: namespace Intermediates usingPlatform: cachedPlatform
-			internalKernel: internalKernel.
-		compilation:: namespace Newspeak2PrimordialSoupCompilation usingPlatform: cachedPlatform
-			asts: asts
-			newspeakParser: parsingX
-			intermediates: intermediatesX.
-		compilerX:: compilation Compiler new
-	)
-	buildIntermediate: i <IntermediateMixin> from: mixin <AbstractMixin> within: ec = (
-		| initializers = List new. lazySlotGetters <Map[Symbol, IntermediateMethod]> = Map new. lazySlotInits <Map[Symbol, IntermediateMethod]> = Map new. lazySlotSetters <Map[Symbol, IntermediateMethod]> = Map new. |
-		mixin _methods do: [:method <Method> |
-				| selector <Symbol> = method selector. imethod <IntermediateMethod> = intermediates IntermediateMethod new. |
-				imethod method: method.
-				imethod methodMixin: mixin.
-				imethod selector: selector.
-				imethod accessModifier: method accessModifier.
-				imethod isSynthetic: method isSynthetic.
-				imethod source: method source.
-				(isSubinitializerSelector: selector) ifTrue: [ initializers add: imethod ].
-				method isLazySlotMethod ifTrue: [
-						| ls <Symbol> = lazySlotNameFromMethod: method. |
-						imethod isLazySlotMethod: true.
-						selector = ls ifTrue: [ lazySlotGetters at: ls put: imethod ]
-							ifFalse: [
-								(selector indexOf: '`method') ~= 0 ifTrue: [
-										lazySlotInits at: ls put: imethod
-									]
-									ifFalse: [ lazySlotSetters at: ls put: imethod ]
-							]
-					].
-				imethod isSynthetic ifFalse: [ i methods add: imethod ]
-			].
-		lazySlotGetters do: [:lg <IntermediateMethod> |
-				| lazySlot <IntermediateLazySlot> = intermediates IntermediateLazySlot new. s <Symbol> = lg selector. |
-				lazySlot intermediateMainMethod: lg;
-					intermediateInitMethod: (lazySlotInits at: s);
-					intermediateSetterMethod: (lazySlotSetters at: s ifAbsent: [ ]).
-				i lazySlots add: lazySlot
-			].
-		mixin isMeta ifTrue: [
-				| factoryName <Symbol> factoryM <Method> factoryIR <IntermediateMethod> |
-				factoryName:: mixin _instanceMixin _primaryFactorySelector.
-				factoryM:: mixin _methods detect: [:ea | ea selector = factoryName ].
-				factoryIR:: intermediates IntermediateMethod new.
-				factoryIR method: factoryM.
-				factoryIR methodMixin: mixin.
-				factoryIR selector: factoryName.
-				factoryIR accessModifier: factoryM accessModifier.
-				factoryIR isSynthetic: true.
-				i declaration factory: factoryIR.
-				^self
-			].
-		i declaration initializers: initializers.
-		mixin _slots do: [:tuple <{Symbol. Boolean. Symbol}> |
-				| slot <IntermediateSlotDeclaration> = intermediates IntermediateSlotDeclaration new. |
-				slot name: (tuple at: 1).
-				slot isMutable: (tuple at: 2).
-				slot accessModifier: (tuple at: 3).
-				(isSyntheticSlotSelector: slot name) ifFalse: [ i slots add: slot ]
-			].
-		mixin _nestedMixins do: [:nestedMixin <InstanceMixin> |
-				| nestedIR <IntermediateClassDeclaration> accessorM <Method> accessorIR <IntermediateMethod> |
-				nestedIR:: buildIntermediateFor: nestedMixin within: ec.
-				i nestedClasses add: nestedIR.
-				accessorM:: mixin _methods detect: [:ea | ea selector = nestedIR simpleName ].
-				accessorIR:: intermediates IntermediateMethod new.
-				accessorIR method: accessorM.
-				accessorIR methodMixin: mixin.
-				accessorIR selector: nestedIR simpleName.
-				accessorIR accessModifier: accessorM accessModifier.
-				accessorIR isSynthetic: true.
-				nestedIR accessor: accessorIR
-			]
-	)
 	lazySlotNameFromMethod: m <Method> ^<Symbol> = (
 		| i <Integer> = m selector indexOf: '`'. j <Integer> = m selector indexOf: ':'. |
 		assert: m isLazySlotMethod
@@ -3202,26 +3179,6 @@ c. If the slot is mutable, there will be a third method, which is an ordinary se
 				^m selector copyFrom: 1 to: i - 1
 			].
 		^m selector copyFrom: 1 to: j - 1
-	)
-	sortedMembers: members by: nameBlock ^<List> = (
-		(* One bin of a class's members in CANONICAL order: by name, so that
-	   a class saved from the IDE and its file pretty-printed come out
-	   identical. The IDE does not store files; it emits each member
-	   from its own stored source in the image's order, and recompiling
-	   a member moves it to the end of its bin, so before this the order
-	   of a file was the order its members were last EDITED -- nothing a
-	   printer could predict. Sorting at emission makes the order a
-	   function of the class alone, and leaves the IR order,
-	   assembleMethods and the installer untouched.
-
-	   The same rule lives in MirrorsForJS (its own sortedMembers:by:) and in NewspeakPrettyPrinter
-	   (sortedByName:by:). All three must agree. *)
-		
-		| sorted = List withAll: members. |
-		sorted sort: [:a :b |
-				memberNameLessOrEqual: (nameBlock value: a) than: (nameBlock value: b)
-			].
-		^sorted
 	)
 	public memberNameLessOrEqual: a <String> than: b <String> ^<Boolean> = (
 		(* THE definition of canonical member order for this platform, lent
@@ -3271,12 +3228,55 @@ c. If the slot is mutable, there will be a third method, which is an ordinary se
 			].
 		^true
 	)
-	foldedRuneOf: s <String> at: i <Integer> ^<Integer> = (
-		(* The rune at i with an ASCII capital lowered; see
-	   memberNameLessOrEqual:than: for why ASCII is the whole domain. *)
+	private methodsOf: behavior = (
+		^self slotOf: behavior at: 2
+	)
+	private mixinOf: behavior = (
+		^self slotOf: behavior at: 4
+	)
+	private numCopiedOf: closure <Closure> ^<Integer> = (
+		(* :literalmessage: primitive: 70 *)
 		
-		| r = s runeAt: i. |
-		(r >= 65 and: [ r <= 90 ]) ifTrue: [ ^r + 32 ].
-		^r
+		halt
+	)
+	private parsing = (
+		nil = parsingX ifTrue: [ constructCompiler ].
+		^parsingX
+	)
+	private slotOf: object at: index = (
+		(* :literalmessage: primitive: 35 *)
+		
+		halt
+	)
+	private slotOf: object at: index put: value = (
+		(* :literalmessage: primitive: 36 *)
+		
+		halt
+	)
+	sortedMembers: members by: nameBlock ^<List> = (
+		(* One bin of a class's members in CANONICAL order: by name, so that
+	   a class saved from the IDE and its file pretty-printed come out
+	   identical. The IDE does not store files; it emits each member
+	   from its own stored source in the image's order, and recompiling
+	   a member moves it to the end of its bin, so before this the order
+	   of a file was the order its members were last EDITED -- nothing a
+	   printer could predict. Sorting at emission makes the order a
+	   function of the class alone, and leaves the IR order,
+	   assembleMethods and the installer untouched.
+
+	   The same rule lives in MirrorsForJS (its own sortedMembers:by:) and in NewspeakPrettyPrinter
+	   (sortedByName:by:). All three must agree. *)
+		
+		| sorted = List withAll: members. |
+		sorted sort: [:a :b |
+				memberNameLessOrEqual: (nameBlock value: a) than: (nameBlock value: b)
+			].
+		^sorted
+	)
+	private subclassesOf: klass = (
+		^self slotOf: klass at: 8
+	)
+	private superclassOf: behavior = (
+		^self slotOf: behavior at: 1
 	)
 ) : ()

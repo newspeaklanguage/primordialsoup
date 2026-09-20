@@ -14,11 +14,19 @@ class Kernel wrapping: k = Object new (
 	public Exception = (
 		^internalKernel Exception
 	)
+	public garbageCollect = (
+		(* for testing *)
+		
+		internalKernel garbageCollect
+	)
 	public Message = (
 		^internalKernel Message
 	)
 	public MessageNotUnderstood = (
 		^internalKernel MessageNotUnderstood
+	)
+	public Proxy = (
+		^internalKernel Proxy
 	)
 	public Stopwatch = (
 		^internalKernel Stopwatch
@@ -36,13 +44,5 @@ class Kernel wrapping: k = Object new (
 	)
 	public WeakMap = (
 		^internalKernel WeakMap
-	)
-	public garbageCollect = (
-		(* for testing *)
-		
-		internalKernel garbageCollect
-	)
-	public Proxy = (
-		^internalKernel Proxy
 	)
 ) : ()

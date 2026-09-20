@@ -201,8 +201,8 @@ class Zircon usingPlatform: p = Object new (
 	public CHANNEL_WRITABLE = (
 		^1 << 1
 	)
-	public VMO_RESIZABLE = (
-		^1 << 1
+	private checkStatus: status = (
+		OK = status ifFalse: [ ^(ZirconException status: status) signal ]
 	)
 	public ERR_BAD_HANDLE = (
 		^-11
@@ -228,7 +228,7 @@ class Zircon usingPlatform: p = Object new (
 	public OK = (
 		^0
 	)
-	private checkStatus: status = (
-		OK = status ifFalse: [ ^(ZirconException status: status) signal ]
+	public VMO_RESIZABLE = (
+		^1 << 1
 	)
 ) : ()

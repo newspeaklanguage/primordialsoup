@@ -568,100 +568,6 @@ An instance holds onto the parent and a collection of child environments. The cl
 			parent withAllParentEnvironmentsDo: aBlock
 		)
 	) : ()
-	public class TestError case: testCase exception: exception = TestResult case: testCase (
-		(* Represents a test case that didn't complete because an error was signaled and not handled while running the test case. The instance holds onto the exception instance representing the error. *)
-		
-		|
-			public exception ::= exception.
-		|
-	) (
-		public isError = (
-			^true
-		)
-	) : ()
-	public class TestFailure case: testCase description: text <String> = TestResult case: testCase (
-		(* Represents a failed assertion in a test case. *)
-		
-		|
-			public description ::= text.
-		|
-	) (
-		public isFailure = (
-			^true
-		)
-	) : ()
-	class TestFailureException new = Exception new (
-		(* An exception thrown when an assertion fails inside a test. The description of the failure is the exception's message text. *)
-		
-	) (
-		public defaultAction = (
-			UnhandledError signalForException: self
-		)
-	) : ()
-	class TestResult case: testCase = Object new (
-		(* The result of running a TestCase. An abstract class. *)
-		
-		|
-			public testCase ::= testCase.
-		|
-	) (
-		public cleanUp = (
-			testCase cleanUp
-		)
-		public isError ^<Boolean> = (
-			^false
-		)
-		public isFailure ^<Boolean> = (
-			^false
-		)
-		public isSuccess ^<Boolean> = (
-			^false
-		)
-	) : ()
-	public class TestSuccess case: testCase = TestResult case: testCase (
-		(* Represents a successful run of a test case. *)
-		
-	) (
-		public isSuccess = (
-			^true
-		)
-	) : ()
-	public class TestSuite testCases: testCases <Collection[TestCase]> = Object new (
-		(* A TestSuite is a collection of TestCases. TestSuites are usually obtained from a TestCatalog created on an instance of a test module. *)
-		
-		|
-			private testCases_slot <Collection[TestCase]> = testCases.
-		|
-	) (
-		+ another <TestSuite> ^<TestSuite> = (
-			(* Returns a new TestSuite that contains TestCases of the receiver and the argument. *)
-			
-			^TestSuite testCases: testCases , another testCases
-		)
-		public ++ another <TestSuite> ^<TestSuite> = (
-			(* Returns a new TestSuite that contains TestCases of the receiver and the argument. *)
-			
-			^TestSuite testCases: testCases , another testCases
-		)
-		modules ^<Collection[Object]> = (
-			(* Returns a collection of test module instances that contain test cases of the suite. *)
-			
-			| result |
-			result:: IdentitySet new.
-			testCases do: [:each | result add: each module ].
-			^result
-		)
-		public size ^<Integer> = (
-			(* Returns the number of test cases in the suite. *)
-			
-			^testCases size
-		)
-		public testCases ^<Collection[TestCase]> = (
-			(* Returns a collection of test cases of the receiver. *)
-			
-			^testCases_slot
-		)
-	) : ()
 	public class Tester testSuite: suite = Object new (
 		(* A tool for executing TestCases. TestCases are supplied to it in the form of a TestSuite. An instance is single-use only. First it is created using the testSuite: primary factory method. Then the tests are executed, either by sending the #runAll message, or by reproducing the steps defined by #runAll in an external tool. Finally, the results can be retrieved from the 'errors', 'failures' and 'successes' slots. *)
 		
@@ -838,6 +744,100 @@ An instance holds onto the parent and a collection of child environments. The cl
 			^testCatalogs: (modules collect: [:each | TestCatalog forModule: each ])
 		)
 	)
+	public class TestError case: testCase exception: exception = TestResult case: testCase (
+		(* Represents a test case that didn't complete because an error was signaled and not handled while running the test case. The instance holds onto the exception instance representing the error. *)
+		
+		|
+			public exception ::= exception.
+		|
+	) (
+		public isError = (
+			^true
+		)
+	) : ()
+	public class TestFailure case: testCase description: text <String> = TestResult case: testCase (
+		(* Represents a failed assertion in a test case. *)
+		
+		|
+			public description ::= text.
+		|
+	) (
+		public isFailure = (
+			^true
+		)
+	) : ()
+	class TestFailureException new = Exception new (
+		(* An exception thrown when an assertion fails inside a test. The description of the failure is the exception's message text. *)
+		
+	) (
+		public defaultAction = (
+			UnhandledError signalForException: self
+		)
+	) : ()
+	class TestResult case: testCase = Object new (
+		(* The result of running a TestCase. An abstract class. *)
+		
+		|
+			public testCase ::= testCase.
+		|
+	) (
+		public cleanUp = (
+			testCase cleanUp
+		)
+		public isError ^<Boolean> = (
+			^false
+		)
+		public isFailure ^<Boolean> = (
+			^false
+		)
+		public isSuccess ^<Boolean> = (
+			^false
+		)
+	) : ()
+	public class TestSuccess case: testCase = TestResult case: testCase (
+		(* Represents a successful run of a test case. *)
+		
+	) (
+		public isSuccess = (
+			^true
+		)
+	) : ()
+	public class TestSuite testCases: testCases <Collection[TestCase]> = Object new (
+		(* A TestSuite is a collection of TestCases. TestSuites are usually obtained from a TestCatalog created on an instance of a test module. *)
+		
+		|
+			private testCases_slot <Collection[TestCase]> = testCases.
+		|
+	) (
+		+ another <TestSuite> ^<TestSuite> = (
+			(* Returns a new TestSuite that contains TestCases of the receiver and the argument. *)
+			
+			^TestSuite testCases: testCases , another testCases
+		)
+		public ++ another <TestSuite> ^<TestSuite> = (
+			(* Returns a new TestSuite that contains TestCases of the receiver and the argument. *)
+			
+			^TestSuite testCases: testCases , another testCases
+		)
+		modules ^<Collection[Object]> = (
+			(* Returns a collection of test module instances that contain test cases of the suite. *)
+			
+			| result |
+			result:: IdentitySet new.
+			testCases do: [:each | result add: each module ].
+			^result
+		)
+		public size ^<Integer> = (
+			(* Returns the number of test cases in the suite. *)
+			
+			^testCases size
+		)
+		public testCases ^<Collection[TestCase]> = (
+			(* Returns a collection of test cases of the receiver. *)
+			
+			^testCases_slot
+		)
+	) : ()
 	class TopLevelTestEnvironment module: moduleInstance = Object new (
 		(* A test environment representing a test module instance. Unlike regular TestEnvironments, it has no parents, but otherwise supports much of the same protocol. *)
 		

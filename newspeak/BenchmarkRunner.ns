@@ -40,6 +40,7 @@ Licensed under the Apache License, Version 2.0 (the ''License''); you may not us
 		)
 		public report = (
 			(* Long windows, median of three: the old 3ms warmup + single 20ms window measured JIT warmup as much as steady state (JS scores swung 40 percent between runs while V8 was still tiering), and a single window is at the mercy of one badly-placed GC. Scores under this harness are NOT comparable to pre-2026-07-17 numbers. *)
+			
 			benchmarks do: [:benchmark |
 					| b s1 s2 s3 score |
 					b:: benchmark usingPlatform: cachedPlatform.

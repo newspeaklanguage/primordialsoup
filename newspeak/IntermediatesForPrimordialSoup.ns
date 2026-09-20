@@ -46,6 +46,55 @@ class IntermediatesForPrimordialSoup usingPlatform: p internalKernel: k = Object
 			^nil = existingMixin _enclosingMixin
 		)
 	) : ()
+	public class IntermediateLazySlot new = Object new (
+		|
+			public intermediateInitMethod <IntermediateMethod>
+			public intermediateMainMethod <IntermediateMethod>
+			public intermediateSetterMethod <IntermediateMethod>
+		|
+	) (
+		public addMethodsTo: methods = (
+			intermediateInitMethod isLazySlotMethod: true.
+			methods add: intermediateInitMethod.
+			intermediateMainMethod isLazySlotMethod: true.
+			methods add: intermediateMainMethod.
+			isMutable ifTrue: [
+					intermediateSetterMethod isLazySlotMethod: true.
+					methods add: intermediateSetterMethod
+				]
+		)
+		public addSlotsInto: aCollection = (
+			aCollection add: intermediateSlotDeclaration
+		)
+		public debugInfo ^<DebugInfo> = (
+			(* If we want to debug, we'll be debugging the init expression *)
+			
+			^intermediateInitMethod debugInfo
+		)
+		public intermediateSlotDeclaration = (
+			| slot <IntermediateSlotDeclaration> = IntermediateSlotDeclaration new. |
+			slot name: (class slotNameForLazySlotNamed: name).
+			slot isMutable: true.
+			slot accessModifier: #private.
+			^slot
+		)
+		public isMutable = (
+			^intermediateSetterMethod isNil not
+		)
+		public name = (
+			^intermediateMainMethod selector
+		)
+		public source = (
+			^intermediateMainMethod source
+		)
+	) : (
+		public initMethodNameForLazySlotNamed: selector <Symbol> ^<Symbol> = (
+			^(selector , '`method') asSymbol
+		)
+		public slotNameForLazySlotNamed: selector <Symbol> ^<Symbol> = (
+			^(selector , '`cache`slot') asSymbol
+		)
+	)
 	public class IntermediateMethod new = Object new (
 		|
 			public method <CompiledMethod>
@@ -78,12 +127,6 @@ class IntermediatesForPrimordialSoup usingPlatform: p internalKernel: k = Object
 		public byteAt: index <Integer> put: datum <Integer> = (
 			bytes at: index put: datum
 		)
-		public name = (
-			^selector
-		)
-		public simpleName = (
-			^selector
-		)
 		public compiledMethod ^<CompiledMethod> = (
 			| bc |
 			nil = method ifFalse: [ ^method ].
@@ -111,6 +154,12 @@ class IntermediatesForPrimordialSoup usingPlatform: p internalKernel: k = Object
 			bytes:: nil.
 			^method
 		)
+		public name = (
+			^selector
+		)
+		public simpleName = (
+			^selector
+		)
 	) : ()
 	public class IntermediateMixin for: d isMeta: m = Object new (
 		|
@@ -123,14 +172,6 @@ class IntermediatesForPrimordialSoup usingPlatform: p internalKernel: k = Object
 			public builder <MixinBuilder>
 		|
 	) (
-		public checkNameConflictsForFactory: selector <Symbol> = (
-			assert: [ isMeta ] message: ''.
-			methods do: [:method |
-					method selector = selector ifTrue: [
-							^Error signal: 'Class already has method named ' , selector
-						]
-				]
-		)
 		public assembleMethods = (
 			| assembledMethods = List new. |
 			assembledMethods addAll: methods.
@@ -149,6 +190,32 @@ class IntermediatesForPrimordialSoup usingPlatform: p internalKernel: k = Object
 					nestedClass addSyntheticSlotsTo: assembledSlots
 				].
 			^assembledSlots
+		)
+		public checkNameConflictsForFactory: selector <Symbol> = (
+			assert: [ isMeta ] message: ''.
+			methods do: [:method |
+					method selector = selector ifTrue: [
+							^Error signal: 'Class already has method named ' , selector
+						]
+				]
+		)
+		public checkNameConflictsForLazySlot: selector <Symbol> mutable: isMutable <Boolean> = (
+			nestedClasses do: [:nestedClass |
+					nestedClass simpleName = selector ifTrue: [
+							^Error signal: 'Class already has nested class named ' , selector
+						]
+				].
+			slots do: [:slot |
+					slot name = selector ifTrue: [
+							^Error signal: 'Class already has slot named ' , selector
+						]
+				].
+			isMutable ifFalse: [ ^self ].
+			methods do: [:method |
+					method selector = (selector , ':') ifTrue: [
+							^Error signal: 'Class already has method named ' , method selector
+						]
+				]
 		)
 		public checkNameConflictsForMethod: selector <Symbol> = (
 			nestedClasses do: [:nestedClass |
@@ -220,24 +287,6 @@ class IntermediatesForPrimordialSoup usingPlatform: p internalKernel: k = Object
 						]
 				]
 		)
-		public checkNameConflictsForLazySlot: selector <Symbol> mutable: isMutable <Boolean> = (
-			nestedClasses do: [:nestedClass |
-					nestedClass simpleName = selector ifTrue: [
-							^Error signal: 'Class already has nested class named ' , selector
-						]
-				].
-			slots do: [:slot |
-					slot name = selector ifTrue: [
-							^Error signal: 'Class already has slot named ' , selector
-						]
-				].
-			isMutable ifFalse: [ ^self ].
-			methods do: [:method |
-					method selector = (selector , ':') ifTrue: [
-							^Error signal: 'Class already has method named ' , method selector
-						]
-				]
-		)
 	) : ()
 	public class IntermediateSlotDeclaration new = Object new (
 		|
@@ -284,53 +333,4 @@ class IntermediatesForPrimordialSoup usingPlatform: p internalKernel: k = Object
 			^name
 		)
 	) : ()
-	public class IntermediateLazySlot new = Object new (
-		|
-			public intermediateInitMethod <IntermediateMethod>
-			public intermediateMainMethod <IntermediateMethod>
-			public intermediateSetterMethod <IntermediateMethod>
-		|
-	) (
-		public isMutable = (
-			^intermediateSetterMethod isNil not
-		)
-		public name = (
-			^intermediateMainMethod selector
-		)
-		public source = (
-			^intermediateMainMethod source
-		)
-		public addSlotsInto: aCollection = (
-			aCollection add: intermediateSlotDeclaration
-		)
-		public intermediateSlotDeclaration = (
-			| slot <IntermediateSlotDeclaration> = IntermediateSlotDeclaration new. |
-			slot name: (class slotNameForLazySlotNamed: name).
-			slot isMutable: true.
-			slot accessModifier: #private.
-			^slot
-		)
-		public addMethodsTo: methods = (
-			intermediateInitMethod isLazySlotMethod: true.
-			methods add: intermediateInitMethod.
-			intermediateMainMethod isLazySlotMethod: true.
-			methods add: intermediateMainMethod.
-			isMutable ifTrue: [
-					intermediateSetterMethod isLazySlotMethod: true.
-					methods add: intermediateSetterMethod
-				]
-		)
-		public debugInfo ^<DebugInfo> = (
-			(* If we want to debug, we'll be debugging the init expression *)
-			
-			^intermediateInitMethod debugInfo
-		)
-	) : (
-		public initMethodNameForLazySlotNamed: selector <Symbol> ^<Symbol> = (
-			^(selector , '`method') asSymbol
-		)
-		public slotNameForLazySlotNamed: selector <Symbol> ^<Symbol> = (
-			^(selector , '`cache`slot') asSymbol
-		)
-	)
 ) : ()

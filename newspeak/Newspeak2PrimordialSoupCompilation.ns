@@ -1,6 +1,9 @@
 Newspeak3
 'Root'
-class Newspeak2PrimordialSoupCompilation usingPlatform: platform asts: asts newspeakParser: ns3Parser intermediates: i = NewspeakBytecodeCompilation usingPlatform: platform asts: asts newspeakParser: ns3Parser intermediates: i (
+class Newspeak2PrimordialSoupCompilation usingPlatform: platform asts: asts newspeakParser: ns3Parser intermediates: i = NewspeakBytecodeCompilation usingPlatform: platform
+	asts: asts
+	newspeakParser: ns3Parser
+	intermediates: i (
 	(* The V4 (psoup VM) bytecode specialization of NewspeakBytecodeCompilation: overrides the nested CodeGenerator with the V4 emitter and provides the V4 common-selector table. The shared pipeline (AST2ByteCodeCompiler, Rewriter, DebugInfo, the class-compilation flow) lives in the superclass module; this module was refactored down to the V4-specific parts on 2026-07-14.
 
 	The Newspeak compilation module for Squeak and PrimordialSoup. For a detailed overview of compilation, see Compiler.
@@ -26,7 +29,7 @@ Copyright 2012-2013 Gilad Bracha, Ryan Macnak and Cadence Design Systems
 			) (
 				public blockReturnTop = (
 					(* Local return of the top of stack from a block: V4 distinguishes this from a method-level return dynamically via a dedicated bytecode. *)
-
+					
 					returnFromBlock
 				)
 				public createClosureOfArity: numArgs copying: numCopied length: jumpSize = (
@@ -80,7 +83,7 @@ Copyright 2012-2013 Gilad Bracha, Ryan Macnak and Cadence Design Systems
 				)
 				public eventualSend: selector numArgs: numArgs = (
 					(* V4 has no eventual-send bytecode; the Rewriter lowers eventual sends to Processor eventualSendTo:selector:arguments: before code generation, so this must be unreachable. *)
-
+					
 					assert: [ false ] message: 'V4 eventual sends are lowered by the Rewriter'
 				)
 				public implicitReceiverSend: selector numArgs: numArgs = (
@@ -111,7 +114,7 @@ Copyright 2012-2013 Gilad Bracha, Ryan Macnak and Cadence Design Systems
 				)
 				public jumpBackTo: target <Integer> = (
 					(* Loop back-edge. V4 encodes it as an ordinary negative jump; the extension prefix makes the instruction sizeOfBackJump bytes long, which the distance must account for. *)
-
+					
 					jumpBy: target - bci - sizeOfBackJump
 				)
 				public jumpBy: distance <Integer> = (
@@ -258,7 +261,7 @@ Copyright 2012-2013 Gilad Bracha, Ryan Macnak and Cadence Design Systems
 				)
 				public pushBoolean: value <Boolean> = (
 					(* V4 pushes booleans through pushLiteral:, which has quick encodings for true and false. *)
-
+					
 					pushLiteral: value
 				)
 				public pushEnclosingObject: depth = (
@@ -332,7 +335,7 @@ Copyright 2012-2013 Gilad Bracha, Ryan Macnak and Cadence Design Systems
 				)
 				public pushMixin = (
 					(* The mixin will be stored in the final literal -added after the end of the literal array *)
-
+					
 					pushLiteralWithIndex: literalTable size + 1
 				)
 				public pushNil = (
@@ -342,7 +345,7 @@ Copyright 2012-2013 Gilad Bracha, Ryan Macnak and Cadence Design Systems
 				)
 				public pushNumber: value <Number> = (
 					(* V4 pushes numbers through pushLiteral:, which has quick encodings for small integers. *)
-
+					
 					pushLiteral: value
 				)
 				public pushRemoteTemporary: index inVector: vectorIndex = (
@@ -390,7 +393,7 @@ Copyright 2012-2013 Gilad Bracha, Ryan Macnak and Cadence Design Systems
 				)
 				public returnLocalSelf = (
 					(* V4's return bytecodes decide local vs non-local dynamically from the executing context, so the four statically-distinguished returns collapse onto two encodings. *)
-
+					
 					returnSelfFromMethod
 				)
 				public returnLocalTop = (
@@ -482,7 +485,8 @@ Copyright 2012-2013 Gilad Bracha, Ryan Macnak and Cadence Design Systems
 		) : ()
 		computeSpecialSelectors ^<Array[Symbol]> = (
 			(* We do not use the quick send bytecode for #== or #class because they hardwire the definitions appropriate for Object, but we expect Values and proxies to override #== and #class respectively. *)
-			^{#+. #-. #<. #>. #<=. #>=. #=. #~=. #*. #/. #\\. #@. #bitShift:. #//. #bitAnd:. #bitOr:. #at:. #at:put:. #size. #next. #nextPut:. #atEnd. nil.
+			
+			^{#+. #-. #<. #>. #<=. #>=. #=. #~=. #*. #/. #\\. #@. #bitShift:. #//. #bitAnd:. #bitOr:. #at:. #at:put:. #size. #next. #nextPut:. #atEnd. nil. 
 			(* #==. *)
 			nil. 
 			(* #class. *)

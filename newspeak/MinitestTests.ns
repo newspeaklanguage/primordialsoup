@@ -158,12 +158,6 @@ class MinitestTests usingPlatform: platform testFramework: minitest = Object new
 							description: 'custom description'
 					] on: TestException1 do: [:ex | ex resume: nil ]
 				)
-				public testShouldPassExceptionSubclass = (
-					should: [ TestException1 new signal ] signal: Exception
-				)
-				public testShouldPassSameExceptionClass = (
-					should: [ TestException1 new signal ] signal: TestException1
-				)
 				public testShouldntFail = (
 					shouldnt: [ TestException1 new signal ] signal: TestException1
 				)
@@ -175,6 +169,12 @@ class MinitestTests usingPlatform: platform testFramework: minitest = Object new
 				public testShouldntPass = (
 					[ shouldnt: [ TestException1 new signal ] signal: TestException2 ] on: TestException1
 						do: [:ex | ex resume: nil ]
+				)
+				public testShouldPassExceptionSubclass = (
+					should: [ TestException1 new signal ] signal: Exception
+				)
+				public testShouldPassSameExceptionClass = (
+					should: [ TestException1 new signal ] signal: TestException1
 				)
 			) : (
 				TEST_CONTEXT = (

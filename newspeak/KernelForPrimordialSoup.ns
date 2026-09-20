@@ -7,6 +7,342 @@ class KernelForPrimordialSoup new = Object new (
 		private symbolTableUsed
 	|
 ) (
+	public class _Array[E] _cannotInstantiate = Collection new (
+	) (
+		public , collection = (
+			| newArray = Array new: self size + collection size. offset = self size. |
+			newArray replaceFrom: 1 to: self size with: self startingAt: 1.
+			1 to: collection size
+				do: [:index | newArray at: index + offset put: (collection at: index) ].
+			^newArray
+		)
+		public asArray ^<Array[E]> = (
+			^self
+		)
+		public at: index <Integer> ^<E> = (
+			(* :literalmessage: primitive: 39 *)
+			
+			^(ArgumentError value: index) signal
+		)
+		public at: index <Integer> put: value <E> ^<E> = (
+			(* :literalmessage: primitive: 40 *)
+			
+			^(ArgumentError value: index) signal
+		)
+		public collect: transform <[:E | F]> ^<Array[F]> = (
+			| results = Array new: size. |
+			1 to: size
+				do: [:index | results at: index put: (transform value: (self at: index)) ].
+			^results
+		)
+		public copy ^<Array[E]> = (
+			^self copyFrom: 1 to: self size
+		)
+		public copyFrom: start <Integer> to: stop <Integer> ^<Array[E]> = (
+			(* :literalmessage: primitive: 81 *)
+			
+			^ArgumentError new signal
+		)
+		public copyWith: newElement <E> ^<Array[E]> = (
+			| newArray = Array new: 1 + self size. |
+			newArray replaceFrom: 1 to: self size with: self startingAt: 1.
+			newArray at: newArray size put: newElement.
+			^newArray
+		)
+		public copyWithSize: newSize <Integer> ^<Array[E]> = (
+			| newArray = Array new: newSize. overlap = size < newSize ifTrue: [ size ]
+				ifFalse: [ newSize ]. |
+			^newArray replaceFrom: 1 to: overlap with: self startingAt: 1
+		)
+		public do: action <[:E | Object]> = (
+			1 to: self size do: [:index | action value: (self at: index) ]
+		)
+		public first ^<E> = (
+			^self at: 1
+		)
+		public indexOf: element <E> ^<Integer> = (
+			1 to: self size do: [:index | (self at: index) = element ifTrue: [ ^index ] ].
+			^0
+		)
+		public isEmpty ^<Boolean> = (
+			^0 = self size
+		)
+		public isKindOfArray ^<Boolean> = (
+			^true
+		)
+		public keysAndValuesDo: action <[:Integer :E | Object]> = (
+			1 to: self size do: [:index | action value: index value: (self at: index) ]
+		)
+		public last ^<E> = (
+			^self at: self size
+		)
+		private merge: source into: destination start: start mid: mid stop: stop by: lessOrEqual = (
+			| leftCursor rightCursor |
+			leftCursor:: start.
+			rightCursor:: 1 + mid.
+			start to: stop
+				do: [:destCursor |
+					leftCursor <= mid ifFalse: [
+							^destination replaceFrom: destCursor
+								to: stop
+								with: source
+								startingAt: rightCursor
+						].
+					rightCursor <= stop ifFalse: [
+							^destination replaceFrom: destCursor
+								to: stop
+								with: source
+								startingAt: leftCursor
+						].
+					(lessOrEqual value: (source at: leftCursor) value: (source at: rightCursor)) ifTrue: [
+							destination at: destCursor put: (source at: leftCursor).
+							leftCursor:: 1 + leftCursor
+						]
+						ifFalse: [
+							destination at: destCursor put: (source at: rightCursor).
+							rightCursor:: 1 + rightCursor
+						]
+				]
+		)
+		public reject: predicate <[:E | Boolean]> ^<Array[E]> = (
+			| result cursor |
+			result:: Array new: self size.
+			cursor:: 0.
+			1 to: self size
+				do: [:index |
+					| element <E> |
+					element:: self at: index.
+					(predicate value: element) ifFalse: [
+							result at: (cursor:: 1 + cursor) put: element
+						]
+				].
+			^result copyFrom: 1 to: cursor
+		)
+		public replaceFrom: start <Integer> to: stop <Integer> with: replacement <Array> startingAt: replacementStart <Integer> = (
+			(* :literalmessage: primitive: 80 *)
+			
+			^ArgumentError new signal
+		)
+		public reverse ^<Array[T]> = (
+			| reversed <Array[t]> = _Array new: size. |
+			size to: 1 by: -1 do: [:i | reversed at: size - i + 1 put: (at: i) ].
+			^reversed
+		)
+		public select: predicate <[:E | Boolean]> ^<Array[E]> = (
+			| result cursor |
+			result:: Array new: self size.
+			cursor:: 0.
+			1 to: self size
+				do: [:index |
+					| element <E> |
+					element:: self at: index.
+					(predicate value: element) ifTrue: [
+							result at: (cursor:: 1 + cursor) put: element
+						]
+				].
+			^result copyFrom: 1 to: cursor
+		)
+		public size ^<Integer> = (
+			(* :literalmessage: primitive: 41 *)
+			
+			primitiveFailed
+		)
+		public sort: lessOrEqual <[:E :E | Boolean]> = (
+			self sortFrom: 1 to: self size by: lessOrEqual
+		)
+		private sort: source into: destination from: start to: stop by: lessOrEqual = (
+			| mid |
+			start >= stop ifTrue: [ ^self ].
+			mid:: start + stop // 2.
+			self sort: destination into: source from: start to: mid by: lessOrEqual.
+			self sort: destination into: source from: 1 + mid to: stop by: lessOrEqual.
+			self merge: source
+				into: destination
+				start: start
+				mid: mid
+				stop: stop
+				by: lessOrEqual
+		)
+		public sortFrom: start to: stop by: lessOrEqual <[:E :E | Boolean]> = (
+			self sort: (self copyWithSize: stop - start + 1)
+				into: self
+				from: start
+				to: stop
+				by: lessOrEqual
+		)
+		public with: other <List[X def]> do: action <[:E :X | Object]> = (
+			assert: [ self size = other size ]
+				message: 'Cannot jointly iterate collections of different sizes'.
+			1 to: size
+				do: [:index <Integer> | action value: (at: index) value: (other at: index) ]
+		)
+	) : (
+		public new: size <Integer> ^<Array[E]> = (
+			(* :literalmessage: primitive: 38 *)
+			
+			^(ArgumentError value: size) signal
+		)
+		public withAll: collection <Collection[E]> ^<Array[E]> = (
+			| result index |
+			result:: Array new: collection size.
+			index:: 1.
+			collection do: [:element <E> |
+					result at: index put: element.
+					index:: 1 + index
+				].
+			^result
+		)
+	)
+	public class _Object new = Object new (
+		(* Object is the root of the class hierarchy in the Newspeak programming language, and provides behavior common to all objects.
+
+Unlike other systems inspired by Smalltalk, the number of methods in this class is deliberately kept to a minimum. Behavior should only be provided by this class if it should be considered part of the core set of features available to *all* Newspeak programmers.
+
+The security model of the Newspeak programming language is based on capabilities and it is essential that capabilities cannot leak through behavior provided by this class. For example, this class provides no mechanism for accessing instance variables of its instances. Instead such capabilities are provided to the debugger and other tools through mirror based reflection modules.
+
+Object has no instance variables, nor should any be added. Several subclasses of Object have special implementations and the VM on relies on their layout. Adding slots to Object would be fatal.
+
+This class is currently named _Object to break a cycle in the class hierarchy that occurs during the bootstrap from the Squeak implementation. Its superclass is later fixed to nil by magic. *)
+		
+	) (
+		public = other <Object> ^<Boolean> = (
+			(* Answers whether the receiver is considered equal to 'other'.
+	May be overridden by subclasses, and should be overridden if the method 'hash' is overridden.
+	This method must implement an equivalence relation, that is, the following must hold:
+	* x = x evaluates to true
+	* if x = y evaluates to true then y = x must evaluate to true
+	* if x = y evaluates to true and y = z evaluates to true then x = z must evaluate to true.
+	Furthermore, this method must be consistent with the implementation of hash, that is:
+	* if x = y evaluates to true then x hash = y hash must evaluate to true. *)
+			
+			(* :literalmessage: primitive: 86 *)
+			
+			halt
+		)
+		public == other <Object> ^<Boolean> = (
+			(* Answers whether the receiver is considered identical to 'other'.
+	May not be overridden by subclasses. *)
+			
+			(* :literalmessage: primitive: 86 *)
+			
+			halt
+		)
+		Array ^<_Array class> = (
+			(* bogus: Should return an object that is not a class so it cannot be subclassed or mixed-in. *)
+			
+			^outer KernelForPrimordialSoup _Array
+		)
+		assert: blockOrBoolean message: message = (
+			#BOGUS.
+			blockOrBoolean isKindOfClosure ifTrue: [
+					blockOrBoolean value ifFalse: [ Exception new signal: message ]
+				]
+				ifFalse: [ blockOrBoolean ifFalse: [ Exception new signal: message ] ]
+		)
+		ByteArray ^<ByteArray class> = (
+			(* bogus: Should return an object that is not a class so it cannot be subclassed or mixed-in. *)
+			
+			^outer KernelForPrimordialSoup ByteArray
+		)
+		class ^<Behavior> = (
+			(* Answers the class of the receiver.
+
+	This method is not public to make it easier to separate the authority of an instance from the authority of its class. This is similar to how the flatness of the metaclass heirarchy separates the interface of an object from the interface of its class. *)
+			
+			(* :literalmessage: primitive: 85 *)
+			
+			halt
+		)
+		doesNotUnderstand: message <Message> = (
+			(0 = message arguments size and: [ message selector startsWith: 'isKindOf' ]) ifTrue: [
+					^false
+				].
+			^(MessageNotUnderstood receiver: self message: message) signal
+		)
+		Error ^<Exception class> = (
+			(* squeak compatibility *)
+			
+			^outer KernelForPrimordialSoup Exception
+		)
+		Exception ^<Exception class> = (
+			^outer KernelForPrimordialSoup Exception
+		)
+		Float ^<Float class> = (
+			(* bogus: Should return an object that is not a class so it cannot be subclassed or mixed-in. *)
+			
+			^outer KernelForPrimordialSoup Float
+		)
+		halt = (
+			(* :literalmessage: primitive: 103 *)
+			
+		)
+		public hash ^<Integer> = (
+			(* Answers the hash code for the receiver.
+	May be overridden by subclasses, and should be overridden if the method '=' is overridden.
+	The hash code must obey the requirements set forth in the method '=', that is, the following must hold:
+	* if x = y evaluates to true then x hash = y hash must evaluate to true. *)
+			
+			(* :literalmessage: primitive: 87 *)
+			
+			halt
+		)
+		public identityHash ^<Integer> = (
+			(* Answers the hash code for the receiver.
+	May not be overridden by subclasses. *)
+			
+			(* :literalmessage: primitive: 87 *)
+			
+			halt
+		)
+		public ifNil: nilBlock ^<Object> = (
+			^self
+		)
+		public ifNil: nilBlock ifNotNil: notNilBlock ^<Object> = (
+			^notNilBlock numArgs = 0 ifTrue: [ notNilBlock value ]
+				ifFalse: [ notNilBlock value: self ]
+		)
+		public ifNotNil: notNilBlock ^<Object> = (
+			^notNilBlock numArgs = 0 ifTrue: [ notNilBlock value ]
+				ifFalse: [ notNilBlock value: self ]
+		)
+		public ifNotNil: notNilBlock ifNil: nilBlock ^<Object> = (
+			^notNilBlock numArgs = 0 ifTrue: [ notNilBlock value ]
+				ifFalse: [ notNilBlock value: self ]
+		)
+		Integer ^<Integer class> = (
+			(* bogus: Should return an object that is not a class so it cannot be subclassed or mixed-in. *)
+			
+			^outer KernelForPrimordialSoup Integer
+		)
+		public isNil ^<Boolean> = (
+			^false
+		)
+		Object ^<_Object class> = (
+			^outer KernelForPrimordialSoup _Object
+		)
+		public out = (
+			print:: self printString
+		)
+		public printString ^<String> = (
+			(* bogus: should not rely on class not being overridden *)
+			
+			^'instance of ' , class name
+		)
+		String ^<String class> = (
+			(* bogus: Should return an object that is not a class so it cannot be subclassed or mixed-in. *)
+			
+			^outer KernelForPrimordialSoup String
+		)
+		subclassResponsibility = (
+			^Error signal: 'Subclass responsibility'
+		)
+		public yourself = (
+			^self
+		)
+		public ~= other <Object> ^<Boolean> = (
+			^(self = other) not
+		)
+	) : ()
 	public class Activation _cannotInstantiate = Object new (
 		(* A reified activation record.
 
@@ -27,10 +363,25 @@ numTemps <SmallInteger>
 			
 			^home return: result
 		)
+		public bci ^<SmallInteger | nil> = (
+			(* :literalmessage: primitive: 57 *)
+			
+			halt
+		)
+		public bci: value <SmallInteger> = (
+			(* :literalmessage: primitive: 58 *)
+			
+			halt
+		)
 		private cannotReturn: result = (
 			(* Sent by the VM if attempting to return to nil sender, or a sender that has already returned. Also triggered if non-local return attempts to return to an activation that can no longer along the chain of senders. *)
 			
 			^(CannotReturn result: result) signal
+		)
+		public closure ^<Closure | nil> = (
+			(* :literalmessage: primitive: 61 *)
+			
+			halt
 		)
 		public closure: value = (
 			(* :literalmessage: primitive: 62 *)
@@ -73,6 +424,11 @@ numTemps <SmallInteger>
 		)
 		public isUnwindContext ^<Boolean> = (
 			^113 = method primitive
+		)
+		public method ^<Method | nil> = (
+			(* :literalmessage: primitive: 59 *)
+			
+			halt
 		)
 		public method: value = (
 			(* :literalmessage: primitive: 60 *)
@@ -119,6 +475,11 @@ numTemps <SmallInteger>
 			self size: newDepth.
 			^self tempAt: newDepth put: value
 		)
+		public receiver ^<Object> = (
+			(* :literalmessage: primitive: 63 *)
+			
+			halt
+		)
 		public receiver: value = (
 			(* :literalmessage: primitive: 64 *)
 			
@@ -145,6 +506,11 @@ numTemps <SmallInteger>
 		public return: value = (
 			nil = sender ifTrue: [ ^self cannotReturn: value ].
 			^sender resume: value
+		)
+		public sender ^<Activation | nil> = (
+			(* :literalmessage: primitive: 55 *)
+			
+			halt
 		)
 		public sender: value = (
 			(* :literalmessage: primitive: 56 *)
@@ -196,36 +562,6 @@ numTemps <SmallInteger>
 		)
 		public top = (
 			^self tempAt: self size
-		)
-		public closure ^<Closure | nil> = (
-			(* :literalmessage: primitive: 61 *)
-			
-			halt
-		)
-		public bci ^<SmallInteger | nil> = (
-			(* :literalmessage: primitive: 57 *)
-			
-			halt
-		)
-		public method ^<Method | nil> = (
-			(* :literalmessage: primitive: 59 *)
-			
-			halt
-		)
-		public receiver ^<Object> = (
-			(* :literalmessage: primitive: 63 *)
-			
-			halt
-		)
-		public sender ^<Activation | nil> = (
-			(* :literalmessage: primitive: 55 *)
-			
-			halt
-		)
-		public bci: value <SmallInteger> = (
-			(* :literalmessage: primitive: 58 *)
-			
-			halt
 		)
 	) : (
 		public new ^<Activation> = (
@@ -310,6 +646,11 @@ numTemps <SmallInteger>
 			
 			^(ArgumentError value: index) signal
 		)
+		public copyByteArrayFrom: start <Integer> to: stop <Integer> ^<ByteArray> = (
+			(* :literalmessage: primitive: 50 *)
+			
+			^ArgumentError new signal
+		)
 		public copyFrom: start <Integer> to: stop <Integer> ^<String> = (
 			(* :literalmessage: primitive: 50 *)
 			
@@ -369,11 +710,6 @@ numTemps <SmallInteger>
 			(* :literalmessage: primitive: 117 *)
 			
 			^(ArgumentError value: prefix) signal
-		)
-		public copyByteArrayFrom: start <Integer> to: stop <Integer> ^<ByteArray> = (
-			(* :literalmessage: primitive: 50 *)
-			
-			^ArgumentError new signal
 		)
 	) : (
 		public new: size <Integer> ^<ByteArray> = (
@@ -492,6 +828,13 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 			
 			halt
 		)
+		private numArgsError: argsProvided = (
+			(* :bogus: *)
+			
+			| msg = 'Closure ' , printString , ' has ' , numArgs printString , ' parameters, but was called with ' , argsProvided printString , ' arguments'. |
+			msg out.
+			^(ArgumentError value: self) signal
+		)
 		public on: exceptionClass <E class> do: catch <[:E | Object]> = (
 			(* :literalmessage: primitive: 116 *)
 			
@@ -551,13 +894,6 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 		)
 		public whileTrue: action = (
 			halt
-		)
-		private numArgsError: argsProvided = (
-			(* :bogus: *)
-			
-			| msg = 'Closure ' , printString , ' has ' , numArgs printString , ' parameters, but was called with ' , argsProvided printString , ' arguments'. |
-			msg out.
-			^(ArgumentError value: self) signal
 		)
 	) : ()
 	public class Collection new = Object new (
@@ -699,6 +1035,41 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 			public messageText (* squeak compatibility for Minitest *)
 		|
 	) (
+		private finish: wakeup = (
+			(* :literalmessage: primitive: 139 *)
+			
+			halt
+		)
+		private invokeNextHandler = (
+			| activation <Activation> |
+			activation:: handlerActivation sender.
+			
+			(* Climb down the stack *)
+			[ nil = activation ] whileFalse: [
+					activation method primitive = 142 ifTrue: [
+							returnToSimulationRoot: activation.
+							halt
+						].
+					
+					(* We have a call to #on:do:. Note: #on:do: is not really a primitive; primitive 116 always fails when called, so the Newspeak  code in Closure>>on:do: is executed. The only purpose of having the primitive is to make it easy to identify on:do: here. *)
+					activation method primitive = 116 ifTrue: 
+						(* The handler is for this exception class (temp 1 is the 1st argument - the exception class passed to #on:do: ) *)
+						[
+							(is: (activation tempAt: 1) interestedIn: super class) ifTrue: 
+								(* the #on:do: handler is active (temp 3 is the local slot in #on:do:, which is the handlerActive flag) *)
+								[
+									(activation tempAt: 3) ifTrue: 
+										(* invoke the handler *)
+										[ ^invokeOnDoHandler: activation ]
+								]
+						].
+					activation:: activation sender
+				].
+			
+			(* No relevant handler on the stack; an unhandled exception (may still use handler of last resort) *)
+			messageLoop unhandledException: self from: signalActivation sender.
+			halt
+		)
 		private invokeOnDoHandler: handler <Activation> = (
 			| handlerResult |
 			handler tempAt: 3 put: false. (* handlerActive:: false. *)
@@ -710,6 +1081,14 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 			signalActivation:: nil.
 			handlerActivation:: nil.
 			^handler return: handlerResult
+		)
+		private is: handlerExceptionClass <Behavior> interestedIn: signaledExceptionClass <Behavior> = (
+			| cls ::= signaledExceptionClass. |
+			[ nil = cls ] whileFalse: [
+					(mixinOf: cls) = (mixinOf: handlerExceptionClass) ifTrue: [ ^true ].
+					cls:: superclassOf: cls
+				].
+			^false
 		)
 		private jumpTo: activation = (
 			(* :literalmessage: primitive: 95 *)
@@ -768,49 +1147,6 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 			messageText:: message.
 			^self signal
 		)
-		private is: handlerExceptionClass <Behavior> interestedIn: signaledExceptionClass <Behavior> = (
-			| cls ::= signaledExceptionClass. |
-			[ nil = cls ] whileFalse: [
-					(mixinOf: cls) = (mixinOf: handlerExceptionClass) ifTrue: [ ^true ].
-					cls:: superclassOf: cls
-				].
-			^false
-		)
-		private finish: wakeup = (
-			(* :literalmessage: primitive: 139 *)
-			
-			halt
-		)
-		private invokeNextHandler = (
-			| activation <Activation> |
-			activation:: handlerActivation sender.
-			
-			(* Climb down the stack *)
-			[ nil = activation ] whileFalse: [
-					activation method primitive = 142 ifTrue: [
-							returnToSimulationRoot: activation.
-							halt
-						].
-					
-					(* We have a call to #on:do:. Note: #on:do: is not really a primitive; primitive 116 always fails when called, so the Newspeak  code in Closure>>on:do: is executed. The only purpose of having the primitive is to make it easy to identify on:do: here. *)
-					activation method primitive = 116 ifTrue: 
-						(* The handler is for this exception class (temp 1 is the 1st argument - the exception class passed to #on:do: ) *)
-						[
-							(is: (activation tempAt: 1) interestedIn: super class) ifTrue: 
-								(* the #on:do: handler is active (temp 3 is the local slot in #on:do:, which is the handlerActive flag) *)
-								[
-									(activation tempAt: 3) ifTrue: 
-										(* invoke the handler *)
-										[ ^invokeOnDoHandler: activation ]
-								]
-						].
-					activation:: activation sender
-				].
-			
-			(* No relevant handler on the stack; an unhandled exception (may still use handler of last resort) *)
-			messageLoop unhandledException: self from: signalActivation sender.
-			halt
-		)
 	) : (
 		public signal: message <String> = (
 			^(self new messageText: message) signal
@@ -862,6 +1198,14 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 	) : ()
 	public class Float _cannotInstantiate = Number new (
 	) (
+		public * x <def X> ^<Y> where { Y :: returnType of (multiplyFromFloat: message of (arg 1)) } = (
+			(* :literalmessage: primitive: 3 *)
+			
+			^x multiplyFromFloat: self
+		)
+		public ** exponent <Number> ^<Float> = (
+			^self pow: exponent asFloat
+		)
 		public + x <def X> ^<Y> where { Y :: returnType of (addFromFloat: message of (arg 1)) } = (
 			(* :literalmessage: primitive: 1 *)
 			
@@ -872,31 +1216,14 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 			
 			^x subtractFromFloat: self
 		)
-		public * x <def X> ^<Y> where { Y :: returnType of (multiplyFromFloat: message of (arg 1)) } = (
-			(* :literalmessage: primitive: 3 *)
-			
-			^x multiplyFromFloat: self
-		)
-		public addFromInteger: x <Integer> ^<Float> = (
-			^x asFloat + self
-		)
 		public addFromFloat: x <Float> ^<Float> = (
 			^x + self
 		)
-		public subtractFromInteger: x <Integer> ^<Float> = (
-			^x asFloat - self
-		)
-		public subtractFromFloat: x <Float> ^<Float> = (
-			^x - self
-		)
-		public multiplyFromInteger: x <Integer> ^<Float> = (
-			^x asFloat * self
-		)
-		public multiplyFromFloat: x <Float> ^<Float> = (
-			^x * self
-		)
 		public addFromFraction: left = (
 			^left asFloat + self
+		)
+		public addFromInteger: x <Integer> ^<Float> = (
+			^x asFloat + self
 		)
 		public asFloat ^<Float> = (
 			^self
@@ -964,8 +1291,19 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 			
 			halt
 		)
+		public multiplyFromFloat: x <Float> ^<Float> = (
+			^x * self
+		)
 		public multiplyFromFraction: left = (
 			^left asFloat * self
+		)
+		public multiplyFromInteger: x <Integer> ^<Float> = (
+			^x asFloat * self
+		)
+		private pow: exponent <Float> ^<Float> = (
+			(* :literalmessage: primitive: 131 *)
+			
+			^(ArgumentError value: exponent) signal
 		)
 		public rounded ^<Float> = (
 			(* :literalmessage: primitive: 125 *)
@@ -982,21 +1320,19 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 			
 			halt
 		)
+		public subtractFromFloat: x <Float> ^<Float> = (
+			^x - self
+		)
 		public subtractFromFraction: left = (
 			^left asFloat - self
+		)
+		public subtractFromInteger: x <Integer> ^<Float> = (
+			^x asFloat - self
 		)
 		public tan ^<Float> = (
 			(* :literalmessage: primitive: 25 *)
 			
 			halt
-		)
-		private pow: exponent <Float> ^<Float> = (
-			(* :literalmessage: primitive: 131 *)
-			
-			^(ArgumentError value: exponent) signal
-		)
-		public ** exponent <Number> ^<Float> = (
-			^self pow: exponent asFloat
 		)
 	) : (
 		public parse: string <String> ^<Float> = (
@@ -1011,24 +1347,6 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 			public denominator <Integer> = denom.
 		|
 	) (
-		public addFromInteger: x <Integer> ^<Number> = (
-			^x * denominator + numerator / denominator
-		)
-		public addFromFloat: x <Float> ^<Float> = (
-			^x + self asFloat
-		)
-		public subtractFromInteger: x <Integer> ^<Number> = (
-			^x * denominator - numerator / denominator
-		)
-		public subtractFromFloat: x <Float> ^<Float> = (
-			^x - self asFloat
-		)
-		public multiplyFromInteger: x <Integer> ^<Number> = (
-			^x * numerator / denominator
-		)
-		public multiplyFromFloat: x <Float> ^<Float> = (
-			^x * self asFloat
-		)
 		public * other <Number> ^<Number> = (
 			other isKindOfFraction ifFalse: [ ^other multiplyFromFraction: self ].
 			^Fraction numerator: numerator * other numerator
@@ -1086,6 +1404,12 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 			other isKindOfFloat ifTrue: [ ^self asFloat >= other ].
 			^(ArgumentError value: other) signal
 		)
+		public addFromFloat: x <Float> ^<Float> = (
+			^x + self asFloat
+		)
+		public addFromInteger: x <Integer> ^<Number> = (
+			^x * denominator + numerator / denominator
+		)
 		public addFromNumber: left = (
 			^left * denominator + numerator / denominator
 		)
@@ -1115,12 +1439,24 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 		public isKindOfFraction ^<Boolean> = (
 			^true
 		)
+		public multiplyFromFloat: x <Float> ^<Float> = (
+			^x * self asFloat
+		)
+		public multiplyFromInteger: x <Integer> ^<Number> = (
+			^x * numerator / denominator
+		)
 		public multiplyFromNumber: left = (
 			^left * numerator / denominator
 		)
 		public rounded ^<Integer> = (
 			^0 <= numerator ifTrue: [ 2 * numerator + denominator quo: 2 * denominator ]
 				ifFalse: [ 2 * numerator - denominator quo: 2 * denominator ]
+		)
+		public subtractFromFloat: x <Float> ^<Float> = (
+			^x - self asFloat
+		)
+		public subtractFromInteger: x <Integer> ^<Number> = (
+			^x * denominator - numerator / denominator
 		)
 		public subtractFromNumber: left = (
 			^left * denominator - numerator / denominator
@@ -1332,6 +1668,11 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 				withName: name
 				enclosingObject: eo
 		)
+		public applyTo: superclass <Class> withEnclosingObject: eo <Object> = (
+			(* Sent by the compiler in nested class accessors. *)
+			
+			^apply: superclass withName: _name enclosingObject: eo
+		)
 		public at: nestedMixinName = (
 			(* bogus: polymorphic with nested mixins map in Squeak. *)
 			
@@ -1422,14 +1763,19 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 			
 			^self
 		)
-		public applyTo: superclass <Class> withEnclosingObject: eo <Object> = (
-			(* Sent by the compiler in nested class accessors. *)
-			
-			^apply: superclass withName: _name enclosingObject: eo
-		)
 	) : ()
 	public class Integer new = Number new (
 	) (
+		public & other <Integer> ^<Integer> = (
+			(* :literalmessage: primitive: 16 *)
+			
+			^(ArgumentError value: other) signal
+		)
+		public * x <def X> ^<Y> where { Y :: returnType of (multiplyFromInteger: message of (arg 1)) } = (
+			(* :literalmessage: primitive: 3 *)
+			
+			^x multiplyFromInteger: self
+		)
 		public + x <def X> ^<Y> where { Y :: returnType of (addFromInteger: message of (arg 1)) } = (
 			(* :literalmessage: primitive: 1 *)
 			
@@ -1439,34 +1785,6 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 			(* :literalmessage: primitive: 2 *)
 			
 			^x subtractFromInteger: self
-		)
-		public * x <def X> ^<Y> where { Y :: returnType of (multiplyFromInteger: message of (arg 1)) } = (
-			(* :literalmessage: primitive: 3 *)
-			
-			^x multiplyFromInteger: self
-		)
-		public addFromInteger: x <Integer> ^<Integer> = (
-			^x + self
-		)
-		public addFromFloat: x <Float> ^<Float> = (
-			^x + self asFloat
-		)
-		public subtractFromInteger: x <Integer> ^<Integer> = (
-			^x - self
-		)
-		public subtractFromFloat: x <Float> ^<Float> = (
-			^x - self asFloat
-		)
-		public multiplyFromInteger: x <Integer> ^<Integer> = (
-			^x * self
-		)
-		public multiplyFromFloat: x <Float> ^<Float> = (
-			^x * self asFloat
-		)
-		public & other <Integer> ^<Integer> = (
-			(* :literalmessage: primitive: 16 *)
-			
-			^(ArgumentError value: other) signal
 		)
 		public / other <Number> ^<Number> = (
 			(* :literalmessage: primitive: 4 *)
@@ -1485,8 +1803,14 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 			
 			^(ArgumentError value: other) signal
 		)
+		public addFromFloat: x <Float> ^<Float> = (
+			^x + self asFloat
+		)
 		public addFromFraction: left = (
 			^left numerator + (self * left denominator) / left denominator
+		)
+		public addFromInteger: x <Integer> ^<Integer> = (
+			^x + self
 		)
 		public asInteger ^<Integer> = (
 			^self
@@ -1556,8 +1880,14 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 		public isKindOfInteger ^<Boolean> = (
 			^true
 		)
+		public multiplyFromFloat: x <Float> ^<Float> = (
+			^x * self asFloat
+		)
 		public multiplyFromFraction: left = (
 			^left numerator * self / left denominator
+		)
+		public multiplyFromInteger: x <Integer> ^<Integer> = (
+			^x * self
 		)
 		public numerator ^<Integer> = (
 			^self
@@ -1568,8 +1898,14 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 		public rounded ^<Integer> = (
 			^self
 		)
+		public subtractFromFloat: x <Float> ^<Float> = (
+			^x - self asFloat
+		)
 		public subtractFromFraction: left = (
 			^left numerator - (self * left denominator) / left denominator
+		)
+		public subtractFromInteger: x <Integer> ^<Integer> = (
+			^x - self
 		)
 		public timesRepeat: action <[]> ^<Integer> = (
 			1 to: self do: [:ignore | action value ].
@@ -1672,6 +2008,17 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 			public metadata <String | MethodMetadata | DebugInfo | Nil>
 		|
 	) (
+		public accessModifier ^<Symbol> = (
+			| ac <Integer> = header >> 28. |
+			0 = ac ifTrue: [ ^#public ].
+			1 = ac ifTrue: [ ^#protected ].
+			2 = ac ifTrue: [ ^#private ].
+			halt
+		)
+		public isLazySlotMethod ^<Boolean> = (
+			^(nil = metadata or: [ metadata isKindOfString ]) ifTrue: [ false ]
+				ifFalse: [ metadata isLazy ]
+		)
 		public isPrivate ^<Boolean> = (
 			^#private = accessModifier
 		)
@@ -1680,6 +2027,11 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 		)
 		public isPublic ^<Boolean> = (
 			^#public = accessModifier
+		)
+		public isSynthetic ^<Boolean> = (
+			^nil = metadata or: [
+					metadata isKindOfString ifTrue: [ false ] ifFalse: [ metadata isLazy ]
+				]
 		)
 		public numArgs ^<Integer> = (
 			^header >> 0 bitAnd: 255
@@ -1690,26 +2042,10 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 		public primitive ^<Integer> = (
 			^header >> 16 bitAnd: 1023
 		)
-		public accessModifier ^<Symbol> = (
-			| ac <Integer> = header >> 28. |
-			0 = ac ifTrue: [ ^#public ].
-			1 = ac ifTrue: [ ^#protected ].
-			2 = ac ifTrue: [ ^#private ].
-			halt
-		)
 		public source = (
 			metadata isNil ifTrue: [ ^nil ].
 			metadata isKindOfString ifFalse: [ ^metadata source ].
 			^metadata
-		)
-		public isSynthetic ^<Boolean> = (
-			^nil = metadata or: [
-					metadata isKindOfString ifTrue: [ false ] ifFalse: [ metadata isLazy ]
-				]
-		)
-		public isLazySlotMethod ^<Boolean> = (
-			^(nil = metadata or: [ metadata isKindOfString ]) ifTrue: [ false ]
-				ifFalse: [ metadata isLazy ]
 		)
 		public source: s = (
 			(* Can be removed after next bootstrap compiler update. *)
@@ -1759,6 +2095,17 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 			^accessor
 		)
 	)
+	public class MethodMetadata source: s <String> isLazy: b <Boolean> = Object new (
+		|
+			public source <String> = s.
+			public isLazy <Boolean> = b.
+		|
+	) (
+	) : (
+		public source: s <String> ^<Instance> = (
+			^source: s isLazy: false
+		)
+	)
 	class NonBooleanReceiver receiver: r = Exception new (
 		|
 			public receiver = r.
@@ -1776,6 +2123,10 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 			(* :literalmessage: primitive: 3 *)
 			
 			^other multiplyFromNumber: self
+		)
+		public ** exponent <Number> ^<Number> = (
+			exponent isKindOfInteger ifTrue: [ ^self raisedToInteger: exponent ].
+			^self asFloat ** exponent
 		)
 		public + other <Number> ^<Number> = (
 			(* Answer the sum of the receiver and the argument. *)
@@ -1842,27 +2193,15 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 			
 			^(ArgumentError value: other) signal
 		)
-		public addFromInteger: x <Integer> ^<Number> = (
-			^x + self
+		public abs ^<Number> = (
+			self < 0 ifTrue: [ ^self negated ].
+			^self
 		)
 		public addFromFloat: x <Float> ^<Float> = (
 			^x + self asFloat
 		)
-		public subtractFromInteger: x <Integer> ^<Number> = (
-			^x - self
-		)
-		public subtractFromFloat: x <Float> ^<Float> = (
-			^x - self asFloat
-		)
-		public multiplyFromInteger: x <Integer> ^<Number> = (
-			^x * self
-		)
-		public multiplyFromFloat: x <Float> ^<Float> = (
-			^x * self asFloat
-		)
-		public abs ^<Number> = (
-			self < 0 ifTrue: [ ^self negated ].
-			^self
+		public addFromInteger: x <Integer> ^<Number> = (
+			^x + self
 		)
 		public asFloat ^<Float> = (
 			(* :literalmessage: primitive: 15 *)
@@ -1915,6 +2254,12 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 		public min: other <Number> ^<Number> = (
 			^self < other ifTrue: [ self ] ifFalse: [ other ]
 		)
+		public multiplyFromFloat: x <Float> ^<Float> = (
+			^x * self asFloat
+		)
+		public multiplyFromInteger: x <Integer> ^<Number> = (
+			^x * self
+		)
 		public negated ^<Number> = (
 			^0 - self
 		)
@@ -1928,6 +2273,19 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 			
 			^(ArgumentError value: other) signal
 		)
+		private raisedToInteger: exponent <Integer> ^<Integer | Fraction> = (
+			| result base e |
+			exponent < 0 ifTrue: [ ^1 / (self raisedToInteger: 0 - exponent) ].
+			result:: 1.
+			base:: self.
+			e:: exponent.
+			[ e > 0 ] whileTrue: [
+					(e bitAnd: 1) = 0 ifFalse: [ result:: result * base ].
+					e:: e >> 1.
+					base:: base * base
+				].
+			^result
+		)
 		public rem: other <Number> ^<Number> = (
 			(* Answer the remainder of division rounded to the nearest integer toward zero. The quoitent of this division is given by quo: *)
 			
@@ -1940,6 +2298,12 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 		)
 		public sqrt ^<Float> = (
 			^self asFloat sqrt
+		)
+		public subtractFromFloat: x <Float> ^<Float> = (
+			^x - self asFloat
+		)
+		public subtractFromInteger: x <Integer> ^<Number> = (
+			^x - self
 		)
 		public tan ^<Float> = (
 			^self asFloat tan
@@ -1966,23 +2330,6 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 					current:: 1 + current
 				].
 			^nil (* To match the inlined version *)
-		)
-		public ** exponent <Number> ^<Number> = (
-			exponent isKindOfInteger ifTrue: [ ^self raisedToInteger: exponent ].
-			^self asFloat ** exponent
-		)
-		private raisedToInteger: exponent <Integer> ^<Integer | Fraction> = (
-			| result base e |
-			exponent < 0 ifTrue: [ ^1 / (self raisedToInteger: 0 - exponent) ].
-			result:: 1.
-			base:: self.
-			e:: exponent.
-			[ e > 0 ] whileTrue: [
-					(e bitAnd: 1) = 0 ifFalse: [ result:: result * base ].
-					e:: e >> 1.
-					base:: base * base
-				].
-			^result
 		)
 	) : ()
 	public class Proxy new = Object new (
@@ -2052,12 +2399,42 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 			
 			halt
 		)
+		public asLowercase = (
+			| lowered = Array new: size. |
+			1 to: size
+				do: [:i |
+					| c = self at: i. |
+					lowered at: i
+						put: ((c between: 65 and: 90) ifTrue: [ c + 32 ] ifFalse: [ c ])
+				].
+			^String withAll: lowered
+		)
 		public asString ^<String> = (
 			^self
 		)
 		public asSymbol ^<String> = (
 			(isCanonical: self) ifTrue: [ ^self ].
 			^intern: self
+		)
+		public asUppercase = (
+			| uppered = Array new: size. |
+			1 to: size
+				do: [:i |
+					| c = self at: i. |
+					uppered at: i
+						put: ((c between: 97 and: 122) ifTrue: [ c - 32 ] ifFalse: [ c ])
+				].
+			^String withAll: uppered
+		)
+		public at: index <Integer> ^<Integer> = (
+			(* :literalmessage: primitive: 51 *)
+			
+			^(ArgumentError value: index) signal
+		)
+		public copyByteArrayFrom: start <Integer> to: stop <Integer> ^<ByteArray> = (
+			(* :literalmessage: primitive: 50 *)
+			
+			^ArgumentError new signal
 		)
 		public copyFrom: start <Integer> to: stop <Integer> ^<String> = (
 			(* :literalmessage: primitive: 121 *)
@@ -2076,158 +2453,6 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 			(* :literalmessage: primitive: 118 *)
 			
 			^(ArgumentError value: suffix) signal
-		)
-		public first ^<Integer> = (
-			^self at: 1
-		)
-		public hash ^<Integer> = (
-			(* :literalmessage: primitive: 54 *)
-			
-			halt
-		)
-		public indexOf: substring <ByteArray | String> ^<Integer> = (
-			^self indexOf: substring startingAt: 1
-		)
-		public indexOf: substring <ByteArray | String> startingAt: index <Integer> ^<Integer> = (
-			(* :literalmessage: primitive: 119 *)
-			
-			^ArgumentError new signal
-		)
-		public isEmpty ^<Boolean> = (
-			^0 = self size
-		)
-		public isKindOfString ^<Boolean> = (
-			^true
-		)
-		public last ^<Integer> = (
-			^self at: self size
-		)
-		public lastIndexOf: substring <ByteArray | String> ^<Integer> = (
-			^self lastIndexOf: substring startingAt: 1 + self size
-		)
-		public lastIndexOf: substring <ByteArray | String> startingAt: index <Integer> ^<Integer> = (
-			(* :literalmessage: primitive: 120 *)
-			
-			^ArgumentError new signal
-		)
-		public out = (
-			print: self
-		)
-		public printString ^<String> = (
-			^'''' , self , ''''
-		)
-		public size ^<Integer> = (
-			(* :literalmessage: primitive: 53 *)
-			
-			halt
-		)
-		public startsWith: prefix <ByteArray | String> ^<Boolean> = (
-			(* :literalmessage: primitive: 117 *)
-			
-			^(ArgumentError value: prefix) signal
-		)
-		public withBlanksTrimmed ^<String> = (
-			| startIndex ::= 1. endIndex ::= size. |
-			isEmpty ifTrue: [ ^self ].
-			[ (self at: startIndex) <= 32 ] whileTrue: [
-					startIndex:: startIndex + 1.
-					startIndex > size ifTrue: [ ^'' ]
-				].
-			[ (self at: endIndex) <= 32 ] whileTrue: [ endIndex:: endIndex - 1 ].
-			^copyFrom: startIndex to: endIndex
-		)
-		public copyByteArrayFrom: start <Integer> to: stop <Integer> ^<ByteArray> = (
-			(* :literalmessage: primitive: 50 *)
-			
-			^ArgumentError new signal
-		)
-		public withoutNbsp = (
-			('a' at: 1) isKindOfInteger ifTrue: [
-					| bytes = copyByteArrayFrom: 1 to: size. |
-					1 to: bytes size
-						do: [:index | (bytes at: index) = 160 ifTrue: [ bytes at: index put: 32 ] ].
-					^String withAll: bytes
-				]
-				ifFalse: [
-					| nonbreakingSpace = String fromRune: 160. space = String fromRune: 32. |
-					^replaceAll: nonbreakingSpace with: space
-				]
-		)
-		public runeAt: index <Integer> ^<Integer> = (
-			(* :bogus: *)
-			
-			^self at: index
-		)
-		public at: index <Integer> ^<Integer> = (
-			(* :literalmessage: primitive: 51 *)
-			
-			^(ArgumentError value: index) signal
-		)
-		public asLowercase = (
-			| lowered = Array new: size. |
-			1 to: size
-				do: [:i |
-					| c = self at: i. |
-					lowered at: i
-						put: ((c between: 65 and: 90) ifTrue: [ c + 32 ] ifFalse: [ c ])
-				].
-			^String withAll: lowered
-		)
-		public asUppercase = (
-			| uppered = Array new: size. |
-			1 to: size
-				do: [:i |
-					| c = self at: i. |
-					uppered at: i
-						put: ((c between: 97 and: 122) ifTrue: [ c - 32 ] ifFalse: [ c ])
-				].
-			^String withAll: uppered
-		)
-		public includesSubstring: s <ByteArray | String> ^<Boolean> = (
-			^0 ~= (indexOf: s startingAt: 1)
-		)
-		public splitOnWhitespace ^<Array[String]> = (
-			| partCount ::= 0. inWord ::= false. wordStart <Integer> parts <Array[String]> partIndex ::= 0. |
-			
-			(* First pass: count parts *)
-			1 to: size
-				do: [:i |
-					| char = at: i. |
-					char <= 32 ifTrue: [
-							inWord ifTrue: [
-									partCount:: partCount + 1.
-									inWord:: false
-								]
-						]
-						ifFalse: [ inWord ifFalse: [ inWord:: true ] ]
-				].
-			inWord ifTrue: [ partCount:: partCount + 1 ].
-			
-			(* Second pass: extract parts *)
-			parts:: Array new: partCount.
-			inWord:: false.
-			1 to: size
-				do: [:i |
-					| char = at: i. |
-					char <= 32 ifTrue: [
-							inWord ifTrue: [
-									partIndex:: partIndex + 1.
-									parts at: partIndex put: (copyFrom: wordStart to: i - 1).
-									inWord:: false
-								]
-						]
-						ifFalse: [
-							inWord ifFalse: [
-									wordStart:: i.
-									inWord:: true
-								]
-						]
-				].
-			inWord ifTrue: [
-					partIndex:: partIndex + 1.
-					parts at: partIndex put: (copyFrom: wordStart to: size)
-				].
-			^parts
 		)
 		public findTokens: separators <String | ByteArray> ^<Array[String]> = (
 			| partCount ::= 0. inWord ::= false. parts partIndex wordStart <Integer> isSeparator |
@@ -2278,6 +2503,128 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 					parts at: partIndex put: (copyFrom: wordStart to: size)
 				].
 			^parts
+		)
+		public first ^<Integer> = (
+			^self at: 1
+		)
+		public hash ^<Integer> = (
+			(* :literalmessage: primitive: 54 *)
+			
+			halt
+		)
+		public includesSubstring: s <ByteArray | String> ^<Boolean> = (
+			^0 ~= (indexOf: s startingAt: 1)
+		)
+		public indexOf: substring <ByteArray | String> ^<Integer> = (
+			^self indexOf: substring startingAt: 1
+		)
+		public indexOf: substring <ByteArray | String> startingAt: index <Integer> ^<Integer> = (
+			(* :literalmessage: primitive: 119 *)
+			
+			^ArgumentError new signal
+		)
+		public isEmpty ^<Boolean> = (
+			^0 = self size
+		)
+		public isKindOfString ^<Boolean> = (
+			^true
+		)
+		public last ^<Integer> = (
+			^self at: self size
+		)
+		public lastIndexOf: substring <ByteArray | String> ^<Integer> = (
+			^self lastIndexOf: substring startingAt: 1 + self size
+		)
+		public lastIndexOf: substring <ByteArray | String> startingAt: index <Integer> ^<Integer> = (
+			(* :literalmessage: primitive: 120 *)
+			
+			^ArgumentError new signal
+		)
+		public out = (
+			print: self
+		)
+		public printString ^<String> = (
+			^'''' , self , ''''
+		)
+		public runeAt: index <Integer> ^<Integer> = (
+			(* :bogus: *)
+			
+			^self at: index
+		)
+		public size ^<Integer> = (
+			(* :literalmessage: primitive: 53 *)
+			
+			halt
+		)
+		public splitOnWhitespace ^<Array[String]> = (
+			| partCount ::= 0. inWord ::= false. wordStart <Integer> parts <Array[String]> partIndex ::= 0. |
+			
+			(* First pass: count parts *)
+			1 to: size
+				do: [:i |
+					| char = at: i. |
+					char <= 32 ifTrue: [
+							inWord ifTrue: [
+									partCount:: partCount + 1.
+									inWord:: false
+								]
+						]
+						ifFalse: [ inWord ifFalse: [ inWord:: true ] ]
+				].
+			inWord ifTrue: [ partCount:: partCount + 1 ].
+			
+			(* Second pass: extract parts *)
+			parts:: Array new: partCount.
+			inWord:: false.
+			1 to: size
+				do: [:i |
+					| char = at: i. |
+					char <= 32 ifTrue: [
+							inWord ifTrue: [
+									partIndex:: partIndex + 1.
+									parts at: partIndex put: (copyFrom: wordStart to: i - 1).
+									inWord:: false
+								]
+						]
+						ifFalse: [
+							inWord ifFalse: [
+									wordStart:: i.
+									inWord:: true
+								]
+						]
+				].
+			inWord ifTrue: [
+					partIndex:: partIndex + 1.
+					parts at: partIndex put: (copyFrom: wordStart to: size)
+				].
+			^parts
+		)
+		public startsWith: prefix <ByteArray | String> ^<Boolean> = (
+			(* :literalmessage: primitive: 117 *)
+			
+			^(ArgumentError value: prefix) signal
+		)
+		public withBlanksTrimmed ^<String> = (
+			| startIndex ::= 1. endIndex ::= size. |
+			isEmpty ifTrue: [ ^self ].
+			[ (self at: startIndex) <= 32 ] whileTrue: [
+					startIndex:: startIndex + 1.
+					startIndex > size ifTrue: [ ^'' ]
+				].
+			[ (self at: endIndex) <= 32 ] whileTrue: [ endIndex:: endIndex - 1 ].
+			^copyFrom: startIndex to: endIndex
+		)
+		public withoutNbsp = (
+			('a' at: 1) isKindOfInteger ifTrue: [
+					| bytes = copyByteArrayFrom: 1 to: size. |
+					1 to: bytes size
+						do: [:index | (bytes at: index) = 160 ifTrue: [ bytes at: index put: 32 ] ].
+					^String withAll: bytes
+				]
+				ifFalse: [
+					| nonbreakingSpace = String fromRune: 160. space = String fromRune: 32. |
+					^replaceAll: nonbreakingSpace with: space
+				]
 		)
 	) : (
 		public cr ^<Instance> = (
@@ -2412,23 +2759,23 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 	) : ()
 	public class UndefinedObject _cannotInstantiate = Object new (
 	) (
-		public isNil ^<Boolean> = (
-			^true
-		)
 		public ifNil: nilBlock ^<Object> = (
+			^nilBlock numArgs = 0 ifTrue: [ nilBlock value ]
+				ifFalse: [ nilBlock value: self ]
+		)
+		public ifNil: nilBlock ifNotNil: notNilBlock ^<Object> = (
 			^nilBlock numArgs = 0 ifTrue: [ nilBlock value ]
 				ifFalse: [ nilBlock value: self ]
 		)
 		public ifNotNil: notNilBlock ^<Object> = (
 			^self
 		)
-		public ifNil: nilBlock ifNotNil: notNilBlock ^<Object> = (
-			^nilBlock numArgs = 0 ifTrue: [ nilBlock value ]
-				ifFalse: [ nilBlock value: self ]
-		)
 		public ifNotNil: notNilBlock ifNil: nilBlock ^<Object> = (
 			^nilBlock numArgs = 0 ifTrue: [ nilBlock value ]
 				ifFalse: [ nilBlock value: self ]
+		)
+		public isNil ^<Boolean> = (
+			^true
 		)
 		public printString ^<String> = (
 			^'nil'
@@ -2563,357 +2910,15 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 			used:: newUsed
 		)
 	) : ()
-	public class _Array[E] _cannotInstantiate = Collection new (
-	) (
-		public , collection = (
-			| newArray = Array new: self size + collection size. offset = self size. |
-			newArray replaceFrom: 1 to: self size with: self startingAt: 1.
-			1 to: collection size
-				do: [:index | newArray at: index + offset put: (collection at: index) ].
-			^newArray
-		)
-		public asArray ^<Array[E]> = (
-			^self
-		)
-		public at: index <Integer> ^<E> = (
-			(* :literalmessage: primitive: 39 *)
-			
-			^(ArgumentError value: index) signal
-		)
-		public at: index <Integer> put: value <E> ^<E> = (
-			(* :literalmessage: primitive: 40 *)
-			
-			^(ArgumentError value: index) signal
-		)
-		public collect: transform <[:E | F]> ^<Array[F]> = (
-			| results = Array new: size. |
-			1 to: size
-				do: [:index | results at: index put: (transform value: (self at: index)) ].
-			^results
-		)
-		public copyWith: newElement <E> ^<Array[E]> = (
-			| newArray = Array new: 1 + self size. |
-			newArray replaceFrom: 1 to: self size with: self startingAt: 1.
-			newArray at: newArray size put: newElement.
-			^newArray
-		)
-		public copyWithSize: newSize <Integer> ^<Array[E]> = (
-			| newArray = Array new: newSize. overlap = size < newSize ifTrue: [ size ]
-				ifFalse: [ newSize ]. |
-			^newArray replaceFrom: 1 to: overlap with: self startingAt: 1
-		)
-		public do: action <[:E | Object]> = (
-			1 to: self size do: [:index | action value: (self at: index) ]
-		)
-		public first ^<E> = (
-			^self at: 1
-		)
-		public indexOf: element <E> ^<Integer> = (
-			1 to: self size do: [:index | (self at: index) = element ifTrue: [ ^index ] ].
-			^0
-		)
-		public isEmpty ^<Boolean> = (
-			^0 = self size
-		)
-		public isKindOfArray ^<Boolean> = (
-			^true
-		)
-		public keysAndValuesDo: action <[:Integer :E | Object]> = (
-			1 to: self size do: [:index | action value: index value: (self at: index) ]
-		)
-		public last ^<E> = (
-			^self at: self size
-		)
-		private merge: source into: destination start: start mid: mid stop: stop by: lessOrEqual = (
-			| leftCursor rightCursor |
-			leftCursor:: start.
-			rightCursor:: 1 + mid.
-			start to: stop
-				do: [:destCursor |
-					leftCursor <= mid ifFalse: [
-							^destination replaceFrom: destCursor
-								to: stop
-								with: source
-								startingAt: rightCursor
-						].
-					rightCursor <= stop ifFalse: [
-							^destination replaceFrom: destCursor
-								to: stop
-								with: source
-								startingAt: leftCursor
-						].
-					(lessOrEqual value: (source at: leftCursor) value: (source at: rightCursor)) ifTrue: [
-							destination at: destCursor put: (source at: leftCursor).
-							leftCursor:: 1 + leftCursor
-						]
-						ifFalse: [
-							destination at: destCursor put: (source at: rightCursor).
-							rightCursor:: 1 + rightCursor
-						]
-				]
-		)
-		public replaceFrom: start <Integer> to: stop <Integer> with: replacement <Array> startingAt: replacementStart <Integer> = (
-			(* :literalmessage: primitive: 80 *)
-			
-			^ArgumentError new signal
-		)
-		public size ^<Integer> = (
-			(* :literalmessage: primitive: 41 *)
-			
-			primitiveFailed
-		)
-		public sort: lessOrEqual <[:E :E | Boolean]> = (
-			self sortFrom: 1 to: self size by: lessOrEqual
-		)
-		private sort: source into: destination from: start to: stop by: lessOrEqual = (
-			| mid |
-			start >= stop ifTrue: [ ^self ].
-			mid:: start + stop // 2.
-			self sort: destination into: source from: start to: mid by: lessOrEqual.
-			self sort: destination into: source from: 1 + mid to: stop by: lessOrEqual.
-			self merge: source
-				into: destination
-				start: start
-				mid: mid
-				stop: stop
-				by: lessOrEqual
-		)
-		public sortFrom: start to: stop by: lessOrEqual <[:E :E | Boolean]> = (
-			self sort: (self copyWithSize: stop - start + 1)
-				into: self
-				from: start
-				to: stop
-				by: lessOrEqual
-		)
-		public with: other <List[X def]> do: action <[:E :X | Object]> = (
-			assert: [ self size = other size ]
-				message: 'Cannot jointly iterate collections of different sizes'.
-			1 to: size
-				do: [:index <Integer> | action value: (at: index) value: (other at: index) ]
-		)
-		public reverse ^<Array[T]> = (
-			| reversed <Array[t]> = _Array new: size. |
-			size to: 1 by: -1 do: [:i | reversed at: size - i + 1 put: (at: i) ].
-			^reversed
-		)
-		public copyFrom: start <Integer> to: stop <Integer> ^<Array[E]> = (
-			(* :literalmessage: primitive: 81 *)
-			
-			^ArgumentError new signal
-		)
-		public reject: predicate <[:E | Boolean]> ^<Array[E]> = (
-			| result cursor |
-			result:: Array new: self size.
-			cursor:: 0.
-			1 to: self size
-				do: [:index |
-					| element <E> |
-					element:: self at: index.
-					(predicate value: element) ifFalse: [
-							result at: (cursor:: 1 + cursor) put: element
-						]
-				].
-			^result copyFrom: 1 to: cursor
-		)
-		public select: predicate <[:E | Boolean]> ^<Array[E]> = (
-			| result cursor |
-			result:: Array new: self size.
-			cursor:: 0.
-			1 to: self size
-				do: [:index |
-					| element <E> |
-					element:: self at: index.
-					(predicate value: element) ifTrue: [
-							result at: (cursor:: 1 + cursor) put: element
-						]
-				].
-			^result copyFrom: 1 to: cursor
-		)
-		public copy ^<Array[E]> = (
-			^self copyFrom: 1 to: self size
-		)
-	) : (
-		public new: size <Integer> ^<Array[E]> = (
-			(* :literalmessage: primitive: 38 *)
-			
-			^(ArgumentError value: size) signal
-		)
-		public withAll: collection <Collection[E]> ^<Array[E]> = (
-			| result index |
-			result:: Array new: collection size.
-			index:: 1.
-			collection do: [:element <E> |
-					result at: index put: element.
-					index:: 1 + index
-				].
-			^result
-		)
-	)
-	public class _Object new = Object new (
-		(* Object is the root of the class hierarchy in the Newspeak programming language, and provides behavior common to all objects.
-
-Unlike other systems inspired by Smalltalk, the number of methods in this class is deliberately kept to a minimum. Behavior should only be provided by this class if it should be considered part of the core set of features available to *all* Newspeak programmers.
-
-The security model of the Newspeak programming language is based on capabilities and it is essential that capabilities cannot leak through behavior provided by this class. For example, this class provides no mechanism for accessing instance variables of its instances. Instead such capabilities are provided to the debugger and other tools through mirror based reflection modules.
-
-Object has no instance variables, nor should any be added. Several subclasses of Object have special implementations and the VM on relies on their layout. Adding slots to Object would be fatal.
-
-This class is currently named _Object to break a cycle in the class hierarchy that occurs during the bootstrap from the Squeak implementation. Its superclass is later fixed to nil by magic. *)
-		
-	) (
-		public = other <Object> ^<Boolean> = (
-			(* Answers whether the receiver is considered equal to 'other'.
-	May be overridden by subclasses, and should be overridden if the method 'hash' is overridden.
-	This method must implement an equivalence relation, that is, the following must hold:
-	* x = x evaluates to true
-	* if x = y evaluates to true then y = x must evaluate to true
-	* if x = y evaluates to true and y = z evaluates to true then x = z must evaluate to true.
-	Furthermore, this method must be consistent with the implementation of hash, that is:
-	* if x = y evaluates to true then x hash = y hash must evaluate to true. *)
-			
-			(* :literalmessage: primitive: 86 *)
-			
-			halt
-		)
-		public == other <Object> ^<Boolean> = (
-			(* Answers whether the receiver is considered identical to 'other'.
-	May not be overridden by subclasses. *)
-			
-			(* :literalmessage: primitive: 86 *)
-			
-			halt
-		)
-		Array ^<_Array class> = (
-			(* bogus: Should return an object that is not a class so it cannot be subclassed or mixed-in. *)
-			
-			^outer KernelForPrimordialSoup _Array
-		)
-		ByteArray ^<ByteArray class> = (
-			(* bogus: Should return an object that is not a class so it cannot be subclassed or mixed-in. *)
-			
-			^outer KernelForPrimordialSoup ByteArray
-		)
-		Error ^<Exception class> = (
-			(* squeak compatibility *)
-			
-			^outer KernelForPrimordialSoup Exception
-		)
-		Exception ^<Exception class> = (
-			^outer KernelForPrimordialSoup Exception
-		)
-		Float ^<Float class> = (
-			(* bogus: Should return an object that is not a class so it cannot be subclassed or mixed-in. *)
-			
-			^outer KernelForPrimordialSoup Float
-		)
-		Integer ^<Integer class> = (
-			(* bogus: Should return an object that is not a class so it cannot be subclassed or mixed-in. *)
-			
-			^outer KernelForPrimordialSoup Integer
-		)
-		Object ^<_Object class> = (
-			^outer KernelForPrimordialSoup _Object
-		)
-		String ^<String class> = (
-			(* bogus: Should return an object that is not a class so it cannot be subclassed or mixed-in. *)
-			
-			^outer KernelForPrimordialSoup String
-		)
-		assert: blockOrBoolean message: message = (
-			#BOGUS.
-			blockOrBoolean isKindOfClosure ifTrue: [
-					blockOrBoolean value ifFalse: [ Exception new signal: message ]
-				]
-				ifFalse: [ blockOrBoolean ifFalse: [ Exception new signal: message ] ]
-		)
-		class ^<Behavior> = (
-			(* Answers the class of the receiver.
-
-	This method is not public to make it easier to separate the authority of an instance from the authority of its class. This is similar to how the flatness of the metaclass heirarchy separates the interface of an object from the interface of its class. *)
-			
-			(* :literalmessage: primitive: 85 *)
-			
-			halt
-		)
-		doesNotUnderstand: message <Message> = (
-			(0 = message arguments size and: [ message selector startsWith: 'isKindOf' ]) ifTrue: [
-					^false
-				].
-			^(MessageNotUnderstood receiver: self message: message) signal
-		)
-		halt = (
-			(* :literalmessage: primitive: 103 *)
-			
-		)
-		public hash ^<Integer> = (
-			(* Answers the hash code for the receiver.
-	May be overridden by subclasses, and should be overridden if the method '=' is overridden.
-	The hash code must obey the requirements set forth in the method '=', that is, the following must hold:
-	* if x = y evaluates to true then x hash = y hash must evaluate to true. *)
-			
-			(* :literalmessage: primitive: 87 *)
-			
-			halt
-		)
-		public identityHash ^<Integer> = (
-			(* Answers the hash code for the receiver.
-	May not be overridden by subclasses. *)
-			
-			(* :literalmessage: primitive: 87 *)
-			
-			halt
-		)
-		public isNil ^<Boolean> = (
-			^false
-		)
-		public ifNil: nilBlock ^<Object> = (
-			^self
-		)
-		public ifNotNil: notNilBlock ^<Object> = (
-			^notNilBlock numArgs = 0 ifTrue: [ notNilBlock value ]
-				ifFalse: [ notNilBlock value: self ]
-		)
-		public ifNil: nilBlock ifNotNil: notNilBlock ^<Object> = (
-			^notNilBlock numArgs = 0 ifTrue: [ notNilBlock value ]
-				ifFalse: [ notNilBlock value: self ]
-		)
-		public ifNotNil: notNilBlock ifNil: nilBlock ^<Object> = (
-			^notNilBlock numArgs = 0 ifTrue: [ notNilBlock value ]
-				ifFalse: [ notNilBlock value: self ]
-		)
-		public out = (
-			print:: self printString
-		)
-		public printString ^<String> = (
-			(* bogus: should not rely on class not being overridden *)
-			
-			^'instance of ' , class name
-		)
-		public yourself = (
-			^self
-		)
-		public ~= other <Object> ^<Boolean> = (
-			^(self = other) not
-		)
-		subclassResponsibility = (
-			^Error signal: 'Subclass responsibility'
-		)
-	) : ()
-	public class MethodMetadata source: s <String> isLazy: b <Boolean> = Object new (
-		|
-			public source <String> = s.
-			public isLazy <Boolean> = b.
-		|
-	) (
-	) : (
-		public source: s <String> ^<Instance> = (
-			^source: s isLazy: false
-		)
-	)
 	public buildObjectStoreWithApplication: app platform: platform symbols: symbols = (
 		symbolTable:: symbols.
 		messageLoop:: platform actors buildLoopForApplication: app platform: platform.
 		^{nil. false. true. messageLoop. {#+. 1. #-. 1. #<. 1. #>. 1. #<=. 1. #>=. 1. #=. 1. #~=. 1. #*. 1. #/. 1. #\\. 1. #@. 1. #bitShift:. 1. #//. 1. #bitAnd:. 1. #bitOr:. 1. #at:. 1. #at:put:. 2. #size. 0. #next. 0. #nextPut:. 1. #atEnd. 0. #==. 1. #class. 0. #blockCopy:. 1. #value. 0. #value:. 1. #do:. 1. #new. 0. #new:. 1. #x. 0. #y. 0. }. #doesNotUnderstand:. #nonBooleanReceiver:. #cannotReturn:. #aboutToReturn:through:. #unusedBytecode. #dispatchMessage:port:. #dispatchHandle:status:signals:count:. _Array. ByteArray. String. Closure. Ephemeron. Float. LargeInteger. MediumInteger. Message. SmallInteger. WeakArray. Activation. Method. }
+	)
+	private classOf: object ^<Class> = (
+		(* :literalmessage: primitive: 85 *)
+		
+		halt
 	)
 	private currentActivation ^<Activation> = (
 		(* :literalmessage: primitive: 133 *)
@@ -3087,10 +3092,5 @@ This class is currently named _Object to break a cycle in the class hierarchy th
 	)
 	private thisClassOf: metaclass put: value = (
 		^self slotOf: metaclass at: 7 put: value
-	)
-	private classOf: object ^<Class> = (
-		(* :literalmessage: primitive: 85 *)
-		
-		halt
 	)
 ) : ()

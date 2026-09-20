@@ -97,9 +97,9 @@ This version derived from the Dart Ton80 version. *)
 			count <Integer> ::= cnt.
 		|
 	) (
-		
-		(* The number of times this task should be scheduled. *)
 		public run: packet <Packet> ^<TaskControlBlock> = (
+			(* The number of times this task should be scheduled. *)
+			
 			count:: count - 1.
 			count = 0 ifTrue: [ ^scheduler holdCurrent ].
 			(control bitAnd: 1) = 0 ifTrue: [
@@ -242,9 +242,9 @@ This version derived from the Dart Ton80 version. *)
 			scheduler <Scheduler> = s.
 		|
 	) (
-		
-		(* The scheduler that manages this task. *)
 		public run: packet <Packet> = (
+			(* The scheduler that manages this task. *)
+			
 			subclassResponsibility
 		)
 	) : ()
