@@ -668,15 +668,26 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 			^ClassDeclarationMirror reflecting: intermediate existingMixin
 		)
 		private to: sb writeClassDeclaration: declIR = (
+			(* Members come out in CANONICAL order -- lazy slots, nested
+	   classes, then methods, each bin by name -- so that saving a
+	   class from the IDE and pretty-printing its file produce the
+	   same text. See sortedMembers:by: on the module. *)
+			
 			sb add: declIR headerSource.
 			sb writeln: ' ('.
-			declIR instanceSide nestedClasses do: [:nestedIR |
+			(sortedMembers: declIR instanceSide lazySlots by: [:ea | ea name ]) do: [:lazySlot |
+					sb writeln: lazySlot source
+				].
+			(sortedMembers: declIR instanceSide nestedClasses by: [:ea | ea simpleName ]) do: [:nestedIR |
 					to: sb writeClassDeclaration: nestedIR
 				].
-			declIR instanceSide lazySlots do: [:lazySlot | sb writeln: lazySlot source ].
-			declIR instanceSide methods do: [:method | sb writeln: method source ].
+			(sortedMembers: declIR instanceSide methods by: [:ea | ea selector ]) do: [:method |
+					sb writeln: method source
+				].
 			sb writeln: ') : ('.
-			declIR classSide methods do: [:method | sb writeln: method source ].
+			(sortedMembers: declIR classSide methods by: [:ea | ea selector ]) do: [:method |
+					sb writeln: method source
+				].
 			sb writeln: ')'
 		)
 	) : (
@@ -767,19 +778,23 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 			^sb asString
 		)
 		private to: sb writeClassDeclaration: instanceMixin = (
+			(* Canonical member order, as in the builder's writeClassDeclaration
+	   above: lazy slots, nested classes, methods, each bin by name.
+	   The two must agree -- either can produce the text of a saved
+	   file -- and both must agree with the pretty printer. *)
+			
 			sb add: instanceMixin _headerSource.
 			sb writeln: ' ('.
-			instanceMixin _nestedMixins do: [:nestedMixin |
+			(sortedMembers: (MixinMirror reflecting: instanceMixin) lazySlots
+				by: [:ea | ea name ]) do: [:lazySlot | sb writeln: lazySlot source ].
+			(sortedMembers: instanceMixin _nestedMixins by: [:ea | ea _name ]) do: [:nestedMixin |
 					to: sb writeClassDeclaration: nestedMixin
 				].
-			(MixinMirror reflecting: instanceMixin) lazySlots do: [:lazySlot |
-					sb writeln: lazySlot source
-				].
-			instanceMixin _methods do: [:method |
+			(sortedMembers: instanceMixin _methods by: [:ea | ea selector ]) do: [:method |
 					method isSynthetic ifFalse: [ sb writeln: method source ]
 				].
 			sb writeln: ') : ('.
-			instanceMixin _classMixin _methods do: [:method |
+			(sortedMembers: instanceMixin _classMixin _methods by: [:ea | ea selector ]) do: [:method |
 					method isSynthetic ifFalse: [ sb writeln: method source ]
 				].
 			sb writeln: ')'
@@ -3187,5 +3202,81 @@ c. If the slot is mutable, there will be a third method, which is an ordinary se
 				^m selector copyFrom: 1 to: i - 1
 			].
 		^m selector copyFrom: 1 to: j - 1
+	)
+	sortedMembers: members by: nameBlock ^<List> = (
+		(* One bin of a class's members in CANONICAL order: by name, so that
+	   a class saved from the IDE and its file pretty-printed come out
+	   identical. The IDE does not store files; it emits each member
+	   from its own stored source in the image's order, and recompiling
+	   a member moves it to the end of its bin, so before this the order
+	   of a file was the order its members were last EDITED -- nothing a
+	   printer could predict. Sorting at emission makes the order a
+	   function of the class alone, and leaves the IR order,
+	   assembleMethods and the installer untouched.
+
+	   The same rule lives in MirrorsForJS (its own sortedMembers:by:) and in NewspeakPrettyPrinter
+	   (sortedByName:by:). All three must agree. *)
+		
+		| sorted = List withAll: members. |
+		sorted sort: [:a :b |
+				memberNameLessOrEqual: (nameBlock value: a) than: (nameBlock value: b)
+			].
+		^sorted
+	)
+	public memberNameLessOrEqual: a <String> than: b <String> ^<Boolean> = (
+		(* THE definition of canonical member order for this platform, lent
+	   to anyone who must agree with it rather than copied by them: the
+	   pretty printer takes it as a closure in its factory (so that it
+	   gets the comparison and not the reflective authority of this
+	   module), and Browsing's lexicallyLessOrEqual:than: delegates here
+	   so the class browser's member list reads in the same order as the
+	   file. Agreement is then structural, not a matter of discipline.
+
+	   Order two member names: case-insensitively, so `apple`, `Banana`,
+	   `cherry` read as an index rather than every capitalised name
+	   coming first; ties broken by codepoint so the order is total and
+	   two members differing only in case (`Foo` and `foo` are both
+	   legal method names) still have a definite order.
+
+	   Deliberately NOT a general lexical ordering of strings. A real
+	   one is locale-dependent -- accented letters sort next to their
+	   base letter in European locales but after `z` by codepoint,
+	   scripts interleave, and case folding itself differs by locale
+	   (Turkish dotless i) -- and belongs in a collation library. This
+	   is defined only on member names, which the grammar restricts to
+	   ASCII: `letter` is A-Z or a-z, an identifier is a letter or
+	   underscore followed by letters, digits and underscores, keyword
+	   selectors add ':' and binary selectors come from
+	   specialCharacter (NewspeakGrammar). No character here has a
+	   debatable order.
+
+	   Browsing>>lexicallyLessOrEqual:than: is a third implementation
+	   that orders LIST VIEWS and is codepoint-only; it is not this and
+	   need not match. *)
+		
+		| limit = a size min: b size. |
+		1 to: limit
+			do: [:i |
+				| fa = foldedRuneOf: a at: i. fb = foldedRuneOf: b at: i. |
+				fa < fb ifTrue: [ ^true ].
+				fa > fb ifTrue: [ ^false ]
+			].
+		a size < b size ifTrue: [ ^true ].
+		a size > b size ifTrue: [ ^false ].
+		1 to: limit
+			do: [:i |
+				| ra = a runeAt: i. rb = b runeAt: i. |
+				ra < rb ifTrue: [ ^true ].
+				ra > rb ifTrue: [ ^false ]
+			].
+		^true
+	)
+	foldedRuneOf: s <String> at: i <Integer> ^<Integer> = (
+		(* The rune at i with an ASCII capital lowered; see
+	   memberNameLessOrEqual:than: for why ASCII is the whole domain. *)
+		
+		| r = s runeAt: i. |
+		(r >= 65 and: [ r <= 90 ]) ifTrue: [ ^r + 32 ].
+		^r
 	)
 ) : ()
