@@ -1154,7 +1154,14 @@ bool Interpreter::ReturnFromDispatch() {
       ip_ = 0;
       sp_ = FrameSavedSP(fp_);
       fp_ = saved_fp;
-      CreateBaseFrame(sender);
+      if (sender->IsActivation() && sender->bci()->IsSmallInteger()) {
+        CreateBaseFrame(sender);
+      } else {
+        // The turn below has finished meanwhile (e.g. a callback that was
+        // abandoned, later resumed from a debugger). Nothing to resume: go
+        // idle, where ip_ holds nil (see InitializeRoot).
+        ip_ = reinterpret_cast<const uint8_t*>(static_cast<uword>(nil_));
+      }
       return false;
     }
   }

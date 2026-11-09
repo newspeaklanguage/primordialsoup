@@ -497,6 +497,8 @@ Note that all slots contain objects that belong to the actor which performed the
 			timerHeap insert: self
 		)
 		public fire = (
+			(* A timer callback is a turn: an exception that escapes it is reported and passed on to the handler of last resort, as EventualSend>>deliver does for a turn without a resolver. It used to be caught and dropped without a word. *)
+			
 			nil = callback ifTrue: [ ^self ].
 			
 			(* Cancelled. *)
@@ -504,17 +506,32 @@ Note that all slots contain objects that belong to the actor which performed the
 					dueTime:: currentMonotonicMillis + millisecondDuration.
 					timerHeap insert: self.
 					[ callback value: externalTimer ] on: Exception
-						do: [:ex | (* unhandledException: ex *) ]
+						do: [:ex |
+							reportTimerFailure: ex.
+							ex pass
+						]
 				]
 				ifFalse: [
 					| savedCallback = callback. |
 					callback:: nil.
 					[ savedCallback value ] on: Exception
-						do: [:ex | (* unhandledException: ex *) ]
+						do: [:ex |
+							reportTimerFailure: ex.
+							ex pass
+						]
 				]
 		)
 		public isActive = (
 			^(nil = callback) not
+		)
+		reportTimerFailure: error = (
+			(* Name the failure before passing it on. Defensive, like EventualSend>>reportUnresolvedTurnFailure: a diagnostic must never replace the exception it reports. *)
+			
+			| errorText |
+			errorText:: [ error printString ] on: Exception
+				do: [:e | '<unprintable exception>' ].
+			[ ('Exception in timer callback: ' , errorText) out ] on: Exception
+				do: [:e | 'Exception in timer callback' out ]
 		)
 	) : ()
 	class MessageLoop application: a platform: p = Object new (

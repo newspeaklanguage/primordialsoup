@@ -14,13 +14,19 @@
 #include "vm/primordial_soup.h"
 
 EM_JS(void, _JS_initializeAliens, (), {
-  var aliens = new Array();
-  aliens.push(undefined);  // 0
-  aliens.push(null);       // 1
-  aliens.push(false);      // 2
-  aliens.push(true);       // 3
-  aliens.push(window);     // 4
-  Module.aliens = aliens;
+  // Two structures. alienTable is index-addressed: an Alien holds an index
+  // into it, so entries are never removed. aliens is the operand stack for
+  // marshalling values across the bridge, and is consumed exactly. They used
+  // to be one array, which left every object argument stranded on the stack
+  // (it was its own handle) and clobbered the arguments before it.
+  var table = new Array();
+  table.push(undefined);  // 0
+  table.push(null);       // 1
+  table.push(false);      // 2
+  table.push(true);       // 3
+  table.push(window);     // 4
+  Module.alienTable = table;
+  Module.aliens = new Array();
 });
 
 static psoup::Isolate* isolate;

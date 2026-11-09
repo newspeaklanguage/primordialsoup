@@ -2699,16 +2699,22 @@ c. If the slot is mutable, there will be a third method, which is an ordinary se
 			
 		)
 		private hasSender: activation = (
+			(* Only activations down to the bottom of this thread count. Below a callback's bottom lies another turn, suspended in a primitive; restarting or returning into it would resume that turn on the wrong stack. *)
+			
 			| s ::= suspendedActivation. |
 			[ nil = s ] whileFalse: [
 					s = activation ifTrue: [ ^true ].
+					(isBottom: s) ifTrue: [ ^false ].
 					s:: s sender
 				].
 			^false
 		)
 		private isBottom: activation <Activation> ^<Boolean> = (
+			(* The bottom is the last activation of this turn: below it is nothing, a simulation root (142), or a MessageLoop dispatch (168), the bottom of every turn. *)
+			
 			nil = activation sender ifTrue: [ ^true ].
-			^142 = activation sender method primitive
+			142 = activation sender method primitive ifTrue: [ ^true ].
+			^168 = activation sender method primitive
 		)
 		private jumpTo: activation = (
 			(* :literalmessage: primitive: 95 *)

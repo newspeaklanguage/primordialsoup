@@ -212,7 +212,9 @@ Expat mappings:
 		)
 	) : ()
 	public alienTableSize = (
-		(* :literalmessage: primitive: 158 *)
+		(* :literalmessage: primitive: 169 *)
+		
+		(* Number of entries in the alien handle table, which only grows. A monitoring hook. *)
 		
 		halt
 	)

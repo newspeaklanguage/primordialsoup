@@ -194,6 +194,7 @@ const bool kFailure = false;
   V(166, JS_performInstanceOf)                                                 \
   V(167, JS_performHas)                                                        \
   V(168, dispatchBoundary)                                                     \
+  V(169, JS_alienTableSize)                                                    \
   V(200, quickReturnSelf)                                                      \
 
 
@@ -3147,12 +3148,14 @@ EM_JS(void, _JS_pushString, (intptr_t addr, intptr_t size), {
   aliens.push(value);
 });
 EM_JS(void, _JS_pushAlien, (intptr_t index), {
-  var aliens = Module.aliens;
-  aliens.push(aliens[index]);
+  Module.aliens.push(Module.alienTable[index]);
 });
 EM_JS(void, _JS_pushExpat, (intptr_t index), {
   var aliens = Module.aliens;
   function expat() {
+    // The operand stack holds only operands (handles live in alienTable),
+    // so it can be restored to this height whatever the callback left on it.
+    var base = aliens.length;
     for (var i = 0; i < arguments.length; i++) {
       aliens.push(arguments[i]);
     }
@@ -3171,9 +3174,16 @@ EM_JS(void, _JS_pushExpat, (intptr_t index), {
       // The callback ended in an unhandled exception (already reported on
       // the Newspeak side) and pushed no result. Fail like a JS callback
       // that throws; a Newspeak caller sees its call-out primitive fail.
+      if (aliens.length > base) {
+        aliens.length = base;
+      }
       throw new Error("Newspeak callback ended with an unhandled exception");
     }
-    return aliens.pop();
+    var result = aliens.pop();
+    if (aliens.length > base) {
+      aliens.length = base;  // Drop anything a failed marshal left behind.
+    }
+    return result;
   }
   aliens.push(expat);
 });
@@ -3247,14 +3257,18 @@ EM_JS(void, _JS_popString, (intptr_t addr, intptr_t size), {
   }
 });
 EM_JS(intptr_t, _JS_peekAlien, (), {
-  var aliens = Module.aliens;
-  var lastIndex = aliens.length - 1;
-  if (undefined === aliens[lastIndex]) {
-    aliens.pop();
+  // Despite the name (kept to match the primitive), this consumes the
+  // operand: it moves the object into alienTable and answers its handle.
+  var alien = Module.aliens.pop();
+  if (undefined === alien) {
     return 0;
-  } else {
-    return lastIndex;
   }
+  var table = Module.alienTable;
+  table.push(alien);
+  return table.length - 1;
+});
+EM_JS(intptr_t, _JS_alienTableSize, (), {
+  return Module.alienTable.length;
 });
 EM_JS(intptr_t, _JS_peekExpat, (), {
   throw "Unimplemented";
@@ -3472,6 +3486,15 @@ DEFINE_PRIMITIVE(JS_peekAlien) {
   ASSERT(num_args == 0);
   intptr_t index = _JS_peekAlien();
   RETURN_SMI(index);
+#endif
+}
+
+DEFINE_PRIMITIVE(JS_alienTableSize) {
+#if !defined(OS_EMSCRIPTEN)
+  return kFailure;
+#else
+  ASSERT(num_args == 0);
+  RETURN_SMI(_JS_alienTableSize());
 #endif
 }
 
