@@ -1051,6 +1051,12 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 							halt
 						].
 					
+					(* A dispatch activation (primitive 168) is the bottom of this turn. Below it may be another turn, suspended inside a primitive that called out to JS, which called back into us; its handlers must not run, so stop as if the stack ended here. *)
+					activation method primitive = 168 ifTrue: [
+							messageLoop unhandledException: self from: signalActivation sender.
+							halt
+						].
+					
 					(* We have a call to #on:do:. Note: #on:do: is not really a primitive; primitive 116 always fails when called, so the Newspeak  code in Closure>>on:do: is executed. The only purpose of having the primitive is to make it easy to identify on:do: here. *)
 					activation method primitive = 116 ifTrue: 
 						(* The handler is for this exception class (temp 1 is the 1st argument - the exception class passed to #on:do: ) *)

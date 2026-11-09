@@ -24,6 +24,11 @@ class Primitives {
 
   static bool IsUnwindProtect(intptr_t prim) { return prim == 113; }
   static bool IsSimulationRoot(intptr_t prim) { return prim == 142; }
+  // Marks the MessageLoop dispatch methods. A dispatch frame is the bottom of
+  // its turn: exception search, non-local return and finish must not cross it,
+  // because below it may be a turn suspended inside a primitive (a synchronous
+  // callback from JS).
+  static bool IsDispatchBoundary(intptr_t prim) { return prim == 168; }
 
   static bool Invoke(intptr_t prim,
                      intptr_t num_args,

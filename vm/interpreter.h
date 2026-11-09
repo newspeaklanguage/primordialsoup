@@ -29,7 +29,9 @@ class Interpreter {
   void Enter();
   void Exit();
   void ActivateDispatch(Method method, intptr_t num_args);
-  void ReturnFromDispatch();
+  // Answers true if the dispatch was abandoned (finish: reached from below
+  // the dispatch frame, i.e. after an unhandled exception).
+  bool ReturnFromDispatch();
 
   void Perform(String selector, intptr_t num_args);
   Method MethodAt(Behavior cls, String selector);
@@ -182,6 +184,7 @@ class Interpreter {
   NOINLINE void CreateBaseFrame(Activation activation);
   NOINLINE Activation EnsureActivation(Object* fp);
   NOINLINE Activation FlushAllFrames();
+  NOINLINE bool UnwindToDispatchBoundary();
   bool HasLivingFrame(Activation activation);
 
   static constexpr intptr_t kStackSlots = 1024;

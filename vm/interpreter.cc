@@ -1018,6 +1018,9 @@ void Interpreter::NonLocalReturn(Object result) {
     if (Primitives::IsSimulationRoot(prim)) {
       break;
     }
+    if (Primitives::IsDispatchBoundary(prim)) {
+      break;
+    }
   }
 
   // A more complicated case: crossing the base frame, #cannotReturn:, or
@@ -1050,6 +1053,14 @@ void Interpreter::NonLocalReturn(Object result) {
       return;
     }
     if (Primitives::IsSimulationRoot(prim)) {
+      CreateBaseFrame(top);
+      SendCannotReturn(result);  // SAFEPOINT
+      return;
+    }
+    if (Primitives::IsDispatchBoundary(prim)) {
+      // The home is in another turn (below a synchronous callback's
+      // dispatch). Returning there would resume a turn that is suspended
+      // inside a primitive.
       CreateBaseFrame(top);
       SendCannotReturn(result);  // SAFEPOINT
       return;
@@ -1115,11 +1126,26 @@ void Interpreter::Exit() {
 }
 
 void Interpreter::ActivateDispatch(Method method, intptr_t num_args) {
-  ASSERT(method->Primitive() == 0);
+  ASSERT((method->Primitive() == 0) ||
+         Primitives::IsDispatchBoundary(method->Primitive()));
   Interpreter::Activate(method, num_args);
 }
 
-void Interpreter::ReturnFromDispatch() {
+bool Interpreter::ReturnFromDispatch() {
+  // Normally MessageLoop>>finish: is sent by the dispatch method itself, so
+  // the current frame is the dispatch frame. After an unhandled exception it
+  // is sent from deep inside the handler machinery instead; then we must
+  // unwind to the innermost dispatch frame, not merely pop the current one,
+  // or a turn suspended below a synchronous callback resumes on the wrong
+  // stack.
+  if (!Primitives::IsDispatchBoundary(FrameMethod(fp_)->Primitive())) {
+    if (UnwindToDispatchBoundary()) {
+      return true;
+    }
+    // No marked dispatch frame (a snapshot predating the marker): keep the
+    // old behavior.
+  }
+
   Object* saved_fp = FrameSavedFP(fp_);
   if (saved_fp == 0) {
     // Base frame.
@@ -1129,13 +1155,42 @@ void Interpreter::ReturnFromDispatch() {
       sp_ = FrameSavedSP(fp_);
       fp_ = saved_fp;
       CreateBaseFrame(sender);
-      return;
+      return false;
     }
   }
 
   ip_ = FrameSavedIP(fp_);
   sp_ = FrameSavedSP(fp_);
   fp_ = saved_fp;
+  return false;
+}
+
+bool Interpreter::UnwindToDispatchBoundary() {
+  Activation top = FlushAllFrames();  // SAFEPOINT
+
+  Activation boundary = top;
+  while (boundary->IsActivation() &&
+         !Primitives::IsDispatchBoundary(boundary->method()->Primitive())) {
+    boundary = boundary->sender();
+  }
+  if (!boundary->IsActivation()) {
+    CreateBaseFrame(top);  // Restore what we flushed.
+    return false;
+  }
+
+  // Leave the abandoned activations intact: a handler of last resort may
+  // have kept them (e.g. for a debugger). Resume whatever was below the
+  // dispatch: a turn suspended in a primitive, or nothing.
+  Activation below = boundary->sender();
+  if (below->IsActivation() && below->bci()->IsSmallInteger()) {
+    CreateBaseFrame(below);
+  } else {
+    // Back to the idle state. FlushAllFrames left ip_ zero, but between
+    // dispatches ip_ holds nil: it becomes the base sender of the next
+    // dispatch activation (see InitializeRoot).
+    ip_ = reinterpret_cast<const uint8_t*>(static_cast<uword>(nil_));
+  }
+  return true;
 }
 
 void Interpreter::PrintStack() {

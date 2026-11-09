@@ -193,6 +193,7 @@ const bool kFailure = false;
   V(165, ZXStatus_getString)                                                   \
   V(166, JS_performInstanceOf)                                                 \
   V(167, JS_performHas)                                                        \
+  V(168, dispatchBoundary)                                                     \
   V(200, quickReturnSelf)                                                      \
 
 
@@ -2711,11 +2712,23 @@ DEFINE_PRIMITIVE(send) {
 }
 
 
+#if defined(OS_EMSCRIPTEN)
+EM_JS(void, _JS_noteDispatchAbandoned, (), {
+  // Read by expat() (see _JS_pushExpat): the callback did not produce a
+  // result, so it must not pop one.
+  Module.dispatchAbandoned = true;
+});
+#endif
+
 DEFINE_PRIMITIVE(MessageLoop_finish) {
   ASSERT(num_args == 1);
   MINT_ARGUMENT(new_wakeup, 0);
   I->isolate()->loop()->MessageEpilogue(new_wakeup);
-  I->ReturnFromDispatch();
+  if (I->ReturnFromDispatch()) {
+#if defined(OS_EMSCRIPTEN)
+    _JS_noteDispatchAbandoned();
+#endif
+  }
   I->Exit();
   UNREACHABLE();
   return kFailure;
@@ -2801,6 +2814,13 @@ DEFINE_PRIMITIVE(doPrimitiveWithArgs) {
     I->PopNAndPush(num_args + 1, failure_token);
     return kSuccess;
   }
+}
+
+
+DEFINE_PRIMITIVE(dispatchBoundary) {
+  // This is a marker primitive for the MessageLoop dispatch methods; see
+  // Primitives::IsDispatchBoundary.
+  return kFailure;
 }
 
 
@@ -3136,12 +3156,22 @@ EM_JS(void, _JS_pushExpat, (intptr_t index), {
     for (var i = 0; i < arguments.length; i++) {
       aliens.push(arguments[i]);
     }
+    var outerAbandoned = Module.dispatchAbandoned;
+    Module.dispatchAbandoned = false;
     var timeout = Module._handle_signal(index, arguments.length, 0, 0);
+    var abandoned = Module.dispatchAbandoned;
+    Module.dispatchAbandoned = outerAbandoned;
     // Timers started during the callback must be scheduled (upstream
     // efccdd5). scheduleTurn is defined by the host page; guard against
     // pages that don't define it.
     if (typeof scheduleTurn === "function") {
       scheduleTurn(timeout);
+    }
+    if (abandoned) {
+      // The callback ended in an unhandled exception (already reported on
+      // the Newspeak side) and pushed no result. Fail like a JS callback
+      // that throws; a Newspeak caller sees its call-out primitive fail.
+      throw new Error("Newspeak callback ended with an unhandled exception");
     }
     return aliens.pop();
   }

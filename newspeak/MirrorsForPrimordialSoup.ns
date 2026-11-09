@@ -2344,6 +2344,7 @@ c. If the slot is mutable, there will be a third method, which is an ordinary se
 							^aboutToReturn: result through: unwind
 						].
 					unwind method primitive = 142 ifTrue: [ ^cannotReturn: result ].
+					unwind method primitive = 168 ifTrue: [ ^cannotReturn: result ].
 					unwind:: unwind sender
 				].
 			sender:: home sender.

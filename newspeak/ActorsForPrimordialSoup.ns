@@ -524,7 +524,9 @@ Note that all slots contain objects that belong to the actor which performed the
 		|
 	) (
 		private dispatchHandle: handle status: status signals: signals count: count = (
-			(* On of two entry points into Newspeak-land. This one handles callbacks to this VM. *)
+			(* :literalmessage: primitive: 168 *)
+			
+			(* On of two entry points into Newspeak-land. This one handles callbacks to this VM. Primitive 168 never runs; it marks this activation as the bottom of the turn, so exception search, non-local return and finish: stop here even when a synchronous JS callback has put this frame on top of a turn that is suspended inside a primitive. *)
 			
 			| handler |
 			
@@ -546,7 +548,9 @@ Note that all slots contain objects that belong to the actor which performed the
 			finish: drainQueue
 		)
 		private dispatchMessage: message port: port = (
-			(* On of two entry points into Newspeak-land. This one handles messages sent to this VM. *)
+			(* :literalmessage: primitive: 168 *)
+			
+			(* On of two entry points into Newspeak-land. This one handles messages sent to this VM. Primitive 168 marks the bottom of the turn; see dispatchHandle:status:signals:count:. *)
 			
 			nil = message ifFalse: [
 					nil = port ifTrue: [ enqueueStartupMessage: message ]
@@ -599,6 +603,16 @@ Note that all slots contain objects that belong to the actor which performed the
 			
 			halt
 		)
+		private isInsideSynchronousCallback: activation = (
+			(* True if the innermost dispatch below activation sits on top of another turn, i.e. JS called back into us from inside a primitive. A top-level dispatch has no sender. *)
+			
+			| a ::= activation. |
+			[ nil = a ] whileFalse: [
+					a method primitive = 168 ifTrue: [ ^(nil = a sender) not ].
+					a:: a sender
+				].
+			^false
+		)
 		public unhandledException: exception from: signalActivationSender = (
 			| activation |
 			
@@ -619,6 +633,11 @@ Note that all slots contain objects that belong to the actor which performed the
 			[ nil = activation ] whileFalse: [
 					activation out.
 					activation:: activation sender
+				].
+			
+			(* Inside a synchronous callback a caller is waiting below the dispatch: abandon just this dispatch, so that the caller's call-out fails and the caller can deal with it, instead of exiting the VM. *)
+			(isInsideSynchronousCallback: signalActivationSender) ifTrue: [
+					finish: timerHeap nextDueTime
 				].
 			exit: -1
 		)
