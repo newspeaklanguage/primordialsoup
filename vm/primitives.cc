@@ -1103,24 +1103,15 @@ DEFINE_PRIMITIVE(Integer_bitShiftRight) {
 
 #define FLOAT_FUNCTION_1(func)                                  \
   ASSERT(num_args == 0);                                        \
-  Float64 rcvr = static_cast<Float64>(I->Stack(0));             \
-  if (!rcvr->IsFloat64()) {                                     \
-    return kFailure;                                            \
-  }                                                             \
-  RETURN_FLOAT(func(rcvr->value()));                            \
+  FLOAT_ARGUMENT(x, 0);                                         \
+  RETURN_FLOAT(func(x));                                        \
 
 
 #define FLOAT_FUNCTION_2(func)                                  \
   ASSERT(num_args == 1);                                        \
-  Float64 rcvr = static_cast<Float64>(I->Stack(1));             \
-  Float64 arg = static_cast<Float64>(I->Stack(0));              \
-  if (!rcvr->IsFloat64()) {                                     \
-    return kFailure;                                            \
-  }                                                             \
-  if (!arg->IsFloat64()) {                                      \
-    return kFailure;                                            \
-  }                                                             \
-  RETURN_FLOAT(func(rcvr->value(), arg->value()));              \
+  FLOAT_ARGUMENT(x, 1);                                         \
+  FLOAT_ARGUMENT(y, 0);                                         \
+  RETURN_FLOAT(func(x, y));                                     \
 
 
 DEFINE_PRIMITIVE(Double_floor) { FLOAT_FUNCTION_1(floor); }
@@ -3099,7 +3090,7 @@ DEFINE_PRIMITIVE(ZXVmo_write) {
 }
 
 #if defined(OS_EMSCRIPTEN)
-EM_JS(void, _JS_pushInteger, (int64_t value), {
+EM_JS(void, _JS_pushInteger, (int32_t value), {
   var aliens = Module.aliens;
   aliens.push(value);
 });
@@ -3109,7 +3100,30 @@ EM_JS(void, _JS_pushFloat, (double value), {
 });
 EM_JS(void, _JS_pushString, (intptr_t addr, intptr_t size), {
   var aliens = Module.aliens;
-  var value = UTF8ToString(addr, size);
+  var memory = HEAPU8;  // Module-local view; refreshed on memory growth.
+  var value = "";
+  var end = addr + size;
+  while (addr < end) {
+    var codePoint;
+    var b1 = memory[addr++];
+    if ((b1 & 0x80) == 0) {
+      codePoint = b1;
+    } else if ((b1 & 0xE0) == 0xC0) {
+      var b2 = memory[addr++];
+      codePoint = ((b1 & 0x1F) << 6) | (b2 & 0x3F);
+    } else if ((b1 & 0xF0) == 0xE0) {
+      var b2 = memory[addr++];
+      var b3 = memory[addr++];
+      codePoint = ((b1 & 0xF) << 12) | ((b2 & 0x3F) << 6) | (b3 & 0x3F);
+    } else {
+      var b2 = memory[addr++];
+      var b3 = memory[addr++];
+      var b4 = memory[addr++];
+      codePoint = ((b1 & 0x7) << 18) | ((b2 & 0x3F) << 12) |
+                  ((b3 & 0x3F) << 6) | (b4 & 0x3F);
+    }
+    value += String.fromCodePoint(codePoint);
+  }
   aliens.push(value);
 });
 EM_JS(void, _JS_pushAlien, (intptr_t index), {
@@ -3122,7 +3136,13 @@ EM_JS(void, _JS_pushExpat, (intptr_t index), {
     for (var i = 0; i < arguments.length; i++) {
       aliens.push(arguments[i]);
     }
-    Module._handle_signal(index, arguments.length, 0, 0);
+    var timeout = Module._handle_signal(index, arguments.length, 0, 0);
+    // Timers started during the callback must be scheduled (upstream
+    // efccdd5). scheduleTurn is defined by the host page; guard against
+    // pages that don't define it.
+    if (typeof scheduleTurn === "function") {
+      scheduleTurn(timeout);
+    }
     return aliens.pop();
   }
   aliens.push(expat);
@@ -3131,19 +3151,36 @@ EM_JS(int, _JS_peekType, (), {
   var aliens = Module.aliens;
   var alien = aliens[aliens.length - 1];
   if (null === alien) {
+    aliens.pop();
     return -1;
   }
   if (false === alien) {
+    aliens.pop();
     return -2;
   }
   if (true === alien) {
+    aliens.pop();
     return -3;
   }
   if (typeof alien === "number") {
     return (alien === (0 | alien)) ? -4 : -5;
   }
   if (typeof alien === "string") {
-    return lengthBytesUTF8(alien);
+    var length = 0;
+    for (var i = 0; i < alien.length; i++) {
+      var codeUnit = alien.charCodeAt(i);
+      if (codeUnit <= 0x7F) {
+        length += 1;
+      } else if (codeUnit <= 0x7FF) {
+        length += 2;
+      } else if (codeUnit >= 0xD800 && codeUnit <= 0xDFFF) {
+        length += 4;
+        i++;  // Skip trailing surrogate.
+      } else {
+        length += 3;
+      }
+    }
+    return length;
   }
   return -6;
 });
@@ -3158,9 +3195,26 @@ EM_JS(double, _JS_popFloat, (), {
 EM_JS(void, _JS_popString, (intptr_t addr, intptr_t size), {
   var aliens = Module.aliens;
   var string = aliens.pop();
-  // TODO(rmacnak): This will write a terminating NUL past the end of our
-  // String object.
-  stringToUTF8(string, addr, size + 1);
+  var memory = HEAPU8;  // Module-local view; refreshed on memory growth.
+  for (var i = 0; i < string.length; i++) {
+    var codePoint = string.codePointAt(i);
+    if (codePoint <= 0x7F) {
+      memory[addr++] = codePoint;
+    } else if (codePoint <= 0x7FF) {
+      memory[addr++] = 0xC0 | (codePoint >> 6);
+      memory[addr++] = 0x80 | (codePoint & 0x3F);
+    } else if (codePoint <= 0xFFFF) {
+      memory[addr++] = 0xE0 | (codePoint >> 12);
+      memory[addr++] = 0x80 | ((codePoint >> 6) & 0x3F);
+      memory[addr++] = 0x80 | (codePoint & 0x3F);
+    } else {
+      memory[addr++] = 0xF0 | (codePoint >> 18);
+      memory[addr++] = 0x80 | ((codePoint >> 12) & 0x3F);
+      memory[addr++] = 0x80 | ((codePoint >> 6) & 0x3F);
+      memory[addr++] = 0x80 | (codePoint & 0x3F);
+      i++;  // Skip trailing surrogate.
+    }
+  }
 });
 EM_JS(intptr_t, _JS_peekAlien, (), {
   var aliens = Module.aliens;
@@ -3294,7 +3348,14 @@ DEFINE_PRIMITIVE(JS_pushValue) {
   }
   if (object->IsMediumInteger()) {
     int64_t value = static_cast<MediumInteger>(object)->value();
-    _JS_pushInteger(value);
+    // Without WASM_BIGINT an int64 cannot cross into JS intact, so values
+    // outside int32 go as doubles (exact up to 2^53). Port of upstream
+    // dc52875, whose range test is inverted; this is the intended one.
+    if (value == static_cast<int32_t>(value)) {
+      _JS_pushInteger(static_cast<int32_t>(value));
+    } else {
+      _JS_pushFloat(static_cast<double>(value));
+    }
     RETURN_SELF();
   }
   if (object->IsFloat64()) {

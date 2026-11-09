@@ -62,12 +62,13 @@ class MarkStack {
   }
 
   bool IsEmpty() const { return top_ == &stack_[0]; }
-  void Push(HeapObject obj) {
+  // Answers false when full; the caller spills to Heap::mark_overflow_.
+  bool Push(HeapObject obj) {
     if (top_ == end_) {
-      FATAL("Mark stack overflow");
-    } else {
-      *top_++ = obj;
+      return false;
     }
+    *top_++ = obj;
+    return true;
   }
   HeapObject Pop() { return *--top_; }
 
@@ -100,7 +101,10 @@ Heap::Heap() :
     handles_(),
     handles_size_(0),
     ephemeron_list_(nullptr),
-    weak_list_(nullptr) {
+    weak_list_(nullptr),
+    mark_overflow_(nullptr),
+    mark_overflow_size_(0),
+    mark_overflow_capacity_(0) {
   to_.Allocate(kInitialSemispaceCapacity);
   from_.Allocate(kInitialSemispaceCapacity);
   top_ = to_.object_start();
@@ -646,9 +650,16 @@ void Heap::MarkSweep(Reason reason) {
 
   // Strong references.
   MarkRoots();
-  while (!mark_stack->IsEmpty()) {
+  while (HasMarkingWork()) {
     ProcessMarkStack();
     MarkEphemeronList();
+  }
+
+  if (mark_overflow_ != nullptr) {
+    delete[] mark_overflow_;
+    mark_overflow_ = nullptr;
+    mark_overflow_size_ = 0;
+    mark_overflow_capacity_ = 0;
   }
 
 #if defined(DEBUG)
@@ -708,13 +719,45 @@ void Heap::MarkObject(Object obj) {
   heap_obj->set_is_marked(true);
   heap_obj->set_is_remembered(false);
   MarkStack* mark_stack = reinterpret_cast<MarkStack*>(from_.base());
-  mark_stack->Push(heap_obj);
+  if (!mark_stack->Push(heap_obj)) {
+    PushMarkOverflow(heap_obj);
+  }
+}
+
+void Heap::PushMarkOverflow(HeapObject obj) {
+  if (mark_overflow_size_ == mark_overflow_capacity_) {
+    intptr_t new_capacity =
+        mark_overflow_capacity_ == 0 ? 64 * KB : mark_overflow_capacity_ * 2;
+    if (TRACE_GROWTH) {
+      OS::PrintErr("Growing mark stack overflow to %" Pd "\n", new_capacity);
+    }
+    HeapObject* new_overflow = new HeapObject[new_capacity];
+    for (intptr_t i = 0; i < mark_overflow_size_; i++) {
+      new_overflow[i] = mark_overflow_[i];
+    }
+    delete[] mark_overflow_;
+    mark_overflow_ = new_overflow;
+    mark_overflow_capacity_ = new_capacity;
+  }
+  mark_overflow_[mark_overflow_size_++] = obj;
+}
+
+bool Heap::HasMarkingWork() {
+  MarkStack* mark_stack = reinterpret_cast<MarkStack*>(from_.base());
+  return !mark_stack->IsEmpty() || (mark_overflow_size_ > 0);
 }
 
 void Heap::ProcessMarkStack() {
   MarkStack* mark_stack = reinterpret_cast<MarkStack*>(from_.base());
-  while (!mark_stack->IsEmpty()) {
-    HeapObject obj = mark_stack->Pop();
+  for (;;) {
+    HeapObject obj;
+    if (!mark_stack->IsEmpty()) {
+      obj = mark_stack->Pop();
+    } else if (mark_overflow_size_ > 0) {
+      obj = mark_overflow_[--mark_overflow_size_];
+    } else {
+      break;
+    }
     ASSERT(obj->is_marked());
     ASSERT(!obj->is_remembered());
 

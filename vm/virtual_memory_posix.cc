@@ -71,8 +71,9 @@ void VirtualMemory::Free() {
 
 
 bool VirtualMemory::Protect(Protection protection) {
-#if defined(__aarch64__)
-  // mprotect crashes my DragonBoard, so skip on ARM64.
+#if defined(__aarch64__) && !defined(__APPLE__)
+  // mprotect crashes my DragonBoard, so skip on ARM64 (but not on Apple
+  // Silicon, where it works and guards from-space in DEBUG builds).
   return true;
 #else
   int prot;

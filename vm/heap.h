@@ -335,6 +335,8 @@ class Heap {
   void MarkSweep(Reason reason);
   void MarkRoots();
   void MarkObject(Object obj);
+  void PushMarkOverflow(HeapObject obj);
+  bool HasMarkingWork();
   void ProcessMarkStack();
   void Sweep();
   bool SweepRegion(Region* region);
@@ -441,6 +443,13 @@ class Heap {
 
   Ephemeron ephemeron_list_;
   WeakArray weak_list_;
+
+  // Spill area for the mark stack. The mark stack lives in from-space and so
+  // is bounded by the semispace size; a wide enough live graph exceeds it.
+  // Only allocated during a mark-sweep that needs it, and freed afterwards.
+  HeapObject* mark_overflow_;
+  intptr_t mark_overflow_size_;
+  intptr_t mark_overflow_capacity_;
 
   DISALLOW_COPY_AND_ASSIGN(Heap);
 };

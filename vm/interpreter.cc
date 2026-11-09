@@ -1635,6 +1635,13 @@ void Interpreter::Interpret() {
       intptr_t delta = (extB << 8) + byte2;
       extB = 0;
       ip_ += delta;
+      if (delta < 0) {
+        // Backward branch: poll for interrupts, so that loops without
+        // sends can still be interrupted (port of upstream 85290ab).
+        if (sp_ < checked_stack_limit_) {
+          StackOverflow();
+        }
+      }
       break;
     }
     case 243: {
