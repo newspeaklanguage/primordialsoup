@@ -178,7 +178,7 @@ def BuildVM(cxx, arch, target_os, debug, sanitize):
       '-s', 'EXPORTED_FUNCTIONS=["_load_snapshot", "_handle_message", "_handle_signal", "_free", "_malloc"]',
       '-s', 'EXPORTED_RUNTIME_METHODS=["stringToUTF8","writeArrayToMemory"]',
       '-s', 'FILESYSTEM=0',
-      '-s', 'TOTAL_STACK=131072',
+      '-s', 'TOTAL_STACK=1048576',
       '-s', 'SUPPORT_LONGJMP=emscripten',
       '-s', 'WASM_BIGINT=0',
       '--shell-file', 'meta/shell.html',

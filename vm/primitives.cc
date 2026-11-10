@@ -3153,6 +3153,15 @@ EM_JS(void, _JS_pushAlien, (intptr_t index), {
 EM_JS(void, _JS_pushExpat, (intptr_t index), {
   var aliens = Module.aliens;
   function expat() {
+    // Each level of JS -> Newspeak callback nesting holds C stack, V8 stack
+    // (wasm frames live there; it runs out near 276 levels) and VM handles.
+    // Running out of any of them mid-VM corrupts the interpreter, so refuse
+    // to re-enter beyond a fixed depth: the JS caller sees an exception,
+    // which a Newspeak caller sees as a failed call-out.
+    var depth = Module.callbackDepth | 0;
+    if (depth >= 64) {
+      throw new Error("Newspeak callbacks nested too deeply");
+    }
     // The operand stack holds only operands (handles live in alienTable),
     // so it can be restored to this height whatever the callback left on it.
     var base = aliens.length;
@@ -3161,7 +3170,13 @@ EM_JS(void, _JS_pushExpat, (intptr_t index), {
     }
     var outerAbandoned = Module.dispatchAbandoned;
     Module.dispatchAbandoned = false;
-    var timeout = Module._handle_signal(index, arguments.length, 0, 0);
+    Module.callbackDepth = depth + 1;
+    var timeout;
+    try {
+      timeout = Module._handle_signal(index, arguments.length, 0, 0);
+    } finally {
+      Module.callbackDepth = depth;
+    }
     var abandoned = Module.dispatchAbandoned;
     Module.dispatchAbandoned = outerAbandoned;
     // Timers started during the callback must be scheduled (upstream

@@ -436,7 +436,11 @@ class Heap {
 
   // Roots.
   Interpreter* interpreter_;
-  static const intptr_t kHandlesCapacity = 8;
+  // Every running primitive holds a handle on its method (Interpreter::
+  // Activate), including a JS call-out suspended under a synchronous
+  // callback, so nested callbacks consume handles; the expat in primitives.cc caps the nesting
+  // depth. A capacity of 8 overflowed at five levels of nesting.
+  static const intptr_t kHandlesCapacity = 512;
   Object* handles_[kHandlesCapacity];
   intptr_t handles_size_;
   friend class HandleScope;
@@ -458,7 +462,11 @@ class Heap {
 class HandleScope {
  public:
   HandleScope(Heap* heap, Object* ptr) : heap_(heap) {
-    ASSERT(heap_->handles_size_ < Heap::kHandlesCapacity);
+    // Checked in release builds too: overflowing used to overwrite the
+    // fields after handles_, silently corrupting the heap.
+    if (heap_->handles_size_ >= Heap::kHandlesCapacity) {
+      FATAL("Handle table overflow");
+    }
     heap_->handles_[heap_->handles_size_++] = ptr;
   }
 
