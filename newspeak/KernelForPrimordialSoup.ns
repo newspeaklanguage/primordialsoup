@@ -1032,7 +1032,7 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 		|
 			private signalActivation <Activation>
 			private handlerActivation <Activation>
-			public messageText (* squeak compatibility for Minitest *)
+			public messageText <String> (* squeak compatibility for Minitest *)
 		|
 	) (
 		private finish: wakeup = (
