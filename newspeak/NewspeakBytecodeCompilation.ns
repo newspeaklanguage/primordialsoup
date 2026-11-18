@@ -1233,8 +1233,13 @@ Assigns locals to context/activation slots. *)
 					body: (nullableCodeBodyNode: node body)
 			)
 			public messageNode: node <MessageAST> = (
-				^(MessageAST new send: node selector
-					with: (node arguments collect: [:argument | argument apply: self ])) copyPositionFrom: node
+				(* The eventual flag must survive this pass: bytecode sets with an eventual-send instruction (V5) compile eventual sends here, where V4 has already lowered them. *)
+				
+				| message |
+				message:: MessageAST new send: node selector
+					with: (node arguments collect: [:argument | argument apply: self ]).
+				message isEventual: node isEventual.
+				^message copyPositionFrom: node
 			)
 			public methodLocalReturnNode: node <MethodLocalReturnAST> = (
 				^(rewriter MethodLocalReturnAST expression: (node expression apply: self)) copyPositionFrom: node
