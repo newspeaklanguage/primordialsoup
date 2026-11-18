@@ -1,6 +1,6 @@
 Newspeak3
 'NS2PrimordialSoup'
-class PrimordialFuelTestApp new = Object new (
+class PrimordialFuelTestApp new = (
 ) (
 	public main = (
 		^42

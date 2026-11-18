@@ -1,6 +1,6 @@
 Newspeak3
 'Fuchsia'
-class Zircon usingPlatform: p = Object new (
+class Zircon usingPlatform: p = (
 	|
 		private ArgumentError = p kernel ArgumentError.
 		private multipleReturn = Array new: 4.
@@ -72,7 +72,7 @@ class Zircon usingPlatform: p = Object new (
 			^(ArgumentError value: options) signal
 		)
 	)
-	public class Message bytes: b handles: h = Object new (
+	public class Message bytes: b handles: h = (
 		|
 			public bytes <ByteArray> = b.
 			public handles <Array[ZirconObject]> = h.
@@ -152,7 +152,7 @@ class Zircon usingPlatform: p = Object new (
 			halt
 		)
 	) : ()
-	class ZirconObject handle: h = Object new (
+	class ZirconObject handle: h = (
 		|
 			handle ::= h.
 			waiter ::= 0.

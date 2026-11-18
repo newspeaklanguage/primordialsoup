@@ -1,6 +1,6 @@
 Newspeak3
 'Root'
-class KernelTestsConfiguration packageTestsUsing: manifest = Object new (
+class KernelTestsConfiguration packageTestsUsing: manifest = (
 	|
 		private KernelTests = manifest KernelTests.
 	|

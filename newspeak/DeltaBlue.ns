@@ -1,6 +1,6 @@
 Newspeak3
 'Benchmarks'
-class DeltaBlue usingPlatform: p = Object new (
+class DeltaBlue usingPlatform: p = (
 	(* One-way constraint solver, originally written in Smalltalk by John Maloney and Mario Wolczko. *)
 	
 	|
@@ -18,13 +18,13 @@ class DeltaBlue usingPlatform: p = Object new (
 		private planner = Planner new.
 	|
 ) (
-	class Direction named: n = Object new (
+	class Direction named: n = (
 		|
 			name <String> = n.
 		|
 	) (
 	) : ()
-	class Plan new = Object new (
+	class Plan new = (
 		(* A Plan is an ordered list of constraints to be executed in sequence to resatisfy all currently satisfiable constraints in the face of one or more changing inputs. *)
 		
 		|
@@ -40,7 +40,7 @@ class DeltaBlue usingPlatform: p = Object new (
 			constraints do: [:c | c execute ]
 		)
 	) : ()
-	class Planner new = Object new (
+	class Planner new = (
 		(* I embody the DeltaBlue algorithm described in: ''The DeltaBlue Algorithm: An Incremental Constraint Hierarchy Solver'' by Bjorn N. Freeman-Benson and John Maloney. See January 1990 Communications of the ACM or University of Washington TR 89-08-06 for further details. *)
 		
 		|
@@ -140,7 +140,7 @@ class DeltaBlue usingPlatform: p = Object new (
 				direction:: nil
 			)
 		) : ()
-		class Constraint strength: s = Object new (
+		class Constraint strength: s = (
 			(* I am an abstract class representing a system-maintainable relationship (or "constraint") between a set of variables. I supply a strength instance variable; concrete subclasses provide a means of storing the constrained variables and other information required to represent a constraint. *)
 			
 			|
@@ -388,7 +388,7 @@ class DeltaBlue usingPlatform: p = Object new (
 				satisfied: false
 			)
 		) : ()
-		class Variable name: n initialValue: v = Object new (
+		class Variable name: n initialValue: v = (
 			(* I represent a constrained variable. In addition to my value, I maintain the structure of the constraint graph, the current dataflow graph, and various parameters of interest to the DeltaBlue incremental constraint solver. *)
 			
 			|
@@ -605,7 +605,7 @@ class DeltaBlue usingPlatform: p = Object new (
 			editC destroyConstraint
 		)
 	) : ()
-	class Strength name: n value: v = Object new (
+	class Strength name: n value: v = (
 		(* Strengths are used to measure the relative importance of constraints. New strengths may be inserted in the strength hierarchy without disrupting current constraints. Strengths cannot be created outside this class, so pointer comparison can be used for value comparison. *)
 		
 		|

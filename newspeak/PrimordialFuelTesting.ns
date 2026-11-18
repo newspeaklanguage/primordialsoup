@@ -1,6 +1,6 @@
 Newspeak3
 'NS2PrimordialSoup'
-class PrimordialFuelTesting usingPlatform: p minitest: m testApp: a = Object new (
+class PrimordialFuelTesting usingPlatform: p minitest: m testApp: a = (
 	|
 		private Serializer = p victoryFuel Serializer.
 		private Deserializer = p victoryFuel Deserializer.

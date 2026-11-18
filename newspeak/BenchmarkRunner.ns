@@ -1,6 +1,6 @@
 Newspeak3
 'Benchmarks'
-class BenchmarkRunner packageUsing: manifest = Object new (
+class BenchmarkRunner packageUsing: manifest = (
 	(* Infrastructure to run a set of benchmarks and gather average run times.
 
 Copyright 2012 Google Inc.
@@ -12,7 +12,7 @@ Licensed under the Apache License, Version 2.0 (the ''License''); you may not us
 		benchmarks = {manifest ClosureDefFibonacci. manifest ClosureFibonacci. manifest DeltaBlue. manifest MethodFibonacci. manifest NLRImmediate. manifest NLRLoop. manifest ParserCombinators. manifest Richards. manifest SlotRead. manifest SlotWrite. manifest Splay. }.
 	|
 ) (
-	class Benchmarking usingPlatform: p = Object new (
+	class Benchmarking usingPlatform: p = (
 		|
 			private Stopwatch = p kernel Stopwatch.
 			private List = p collections List.

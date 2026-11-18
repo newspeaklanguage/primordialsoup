@@ -1,6 +1,6 @@
 Newspeak3
 'Root'
-class JSON usingPlatform: platform = Object new (
+class JSON usingPlatform: platform = (
 	|
 		private ArgumentError = platform kernel ArgumentError.
 		private StringBuilder = platform kernel StringBuilder.
@@ -8,7 +8,7 @@ class JSON usingPlatform: platform = Object new (
 		private Map = platform collections Map.
 	|
 ) (
-	class Decoder on: b = Object new (
+	class Decoder on: b = (
 		|
 			string <ByteArray | String> = b.
 			position <Integer> ::= 1.
@@ -287,7 +287,7 @@ class JSON usingPlatform: platform = Object new (
 				]
 		)
 	) : ()
-	class Encoder on: b = Object new (
+	class Encoder on: b = (
 		|
 			builder <StringBuilder> = b.
 		|

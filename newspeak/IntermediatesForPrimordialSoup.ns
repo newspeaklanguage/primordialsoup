@@ -1,6 +1,6 @@
 Newspeak3
 'Root'
-class IntermediatesForPrimordialSoup usingPlatform: p internalKernel: k = Object new (
+class IntermediatesForPrimordialSoup usingPlatform: p internalKernel: k = (
 	|
 		private List = p collections List.
 		private Map = p collections Map.
@@ -8,7 +8,7 @@ class IntermediatesForPrimordialSoup usingPlatform: p internalKernel: k = Object
 		private MethodMetadata = k MethodMetadata.
 	|
 ) (
-	public class IntermediateClassDeclaration new = Object new (
+	public class IntermediateClassDeclaration new = (
 		|
 			public simpleName
 			public headerSource
@@ -46,7 +46,7 @@ class IntermediatesForPrimordialSoup usingPlatform: p internalKernel: k = Object
 			^nil = existingMixin _enclosingMixin
 		)
 	) : ()
-	public class IntermediateLazySlot new = Object new (
+	public class IntermediateLazySlot new = (
 		|
 			public intermediateInitMethod <IntermediateMethod>
 			public intermediateMainMethod <IntermediateMethod>
@@ -95,7 +95,7 @@ class IntermediatesForPrimordialSoup usingPlatform: p internalKernel: k = Object
 			^(selector , '`cache`slot') asSymbol
 		)
 	)
-	public class IntermediateMethod new = Object new (
+	public class IntermediateMethod new = (
 		|
 			public method <CompiledMethod>
 			public debugInfo
@@ -161,7 +161,7 @@ class IntermediatesForPrimordialSoup usingPlatform: p internalKernel: k = Object
 			^selector
 		)
 	) : ()
-	public class IntermediateMixin for: d isMeta: m = Object new (
+	public class IntermediateMixin for: d isMeta: m = (
 		|
 			public declaration <IntermediateClassDeclaration> = d.
 			public isMeta <Boolean> = m.
@@ -288,7 +288,7 @@ class IntermediatesForPrimordialSoup usingPlatform: p internalKernel: k = Object
 				]
 		)
 	) : ()
-	public class IntermediateSlotDeclaration new = Object new (
+	public class IntermediateSlotDeclaration new = (
 		|
 			public name
 			public isMutable

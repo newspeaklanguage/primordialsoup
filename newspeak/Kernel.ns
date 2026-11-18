@@ -1,6 +1,6 @@
 Newspeak3
 'Root'
-class Kernel wrapping: k = Object new (
+class Kernel wrapping: k = (
 	|
 		private internalKernel = k.
 	|

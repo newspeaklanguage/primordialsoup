@@ -1,6 +1,6 @@
 Newspeak3
 'NS2PrimordialSoup'
-class HelloApp packageUsing: manifest = Object new (
+class HelloApp packageUsing: manifest = (
 ) (
 	public main: platform args: args = (
 		'Hello, polymerizing new world!' out

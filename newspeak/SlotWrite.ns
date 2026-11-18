@@ -1,6 +1,6 @@
 Newspeak3
 'Benchmarks'
-class SlotWrite usingPlatform: p = Object new (
+class SlotWrite usingPlatform: p = (
 	|
 		slot
 	|

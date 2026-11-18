@@ -1,6 +1,6 @@
 Newspeak3
 'Root'
-class KernelForPrimordialSoup new = Object new (
+class KernelForPrimordialSoup new = (
 	|
 		private messageLoop <MessageLoop>
 		private symbolTable <WeakArray[Symbol]>
@@ -193,7 +193,7 @@ class KernelForPrimordialSoup new = Object new (
 			^result
 		)
 	)
-	public class _Object new = Object new (
+	public class _Object new = (
 		(* Object is the root of the class hierarchy in the Newspeak programming language, and provides behavior common to all objects.
 
 Unlike other systems inspired by Smalltalk, the number of methods in this class is deliberately kept to a minimum. Behavior should only be provided by this class if it should be considered part of the core set of features available to *all* Newspeak programmers.
@@ -343,7 +343,7 @@ This class is currently named _Object to break a cycle in the class hierarchy th
 			^(self = other) not
 		)
 	) : ()
-	public class Activation _cannotInstantiate = Object new (
+	public class Activation _cannotInstantiate = (
 		(* A reified activation record.
 
 Note that this class only contains accessors and the logic needed for unwind-protect and exceptions. The debugger's simulator that is normally implemented in this class in Smalltalks is instead in the mirrors module.
@@ -583,7 +583,7 @@ numTemps <SmallInteger>
 			^self value: nil
 		)
 	)
-	public class Behavior new = Object new (
+	public class Behavior new = (
 		|
 			private superclass <Behavior> (* Must be slot 1, known to the VM. *)
 			private methods <Array[Method]> (* Must be slot 2, known to the VM. *)
@@ -604,7 +604,7 @@ numTemps <SmallInteger>
 				enclosingObject: self enclosingObject
 		)
 	) : ()
-	public class Boolean new = Object new (
+	public class Boolean new = (
 	) (
 		public & alternative <Boolean> ^<Boolean> = (
 			^self subclassResponsibility
@@ -765,7 +765,7 @@ numTemps <SmallInteger>
 			^nameS
 		)
 	) : ()
-	public class ClassMixin new = Object new (
+	public class ClassMixin new = (
 		(* A class-side mixin is the difference between a metaclass and Class. (In Newspeak metaclasses are direct subclasses of Class, unlike Smalltalk where they are subclasses of the class's superclass's metaclass.) Note that class-side mixins can only introduce additional methods, unlike instance-side mixins which can introduce slots, methods and nested classes. Because of this, module definitions (top-level classes) are always stateless.
 
 Raw mixins are not user accessible. Mixins are implicitly extracted from a class during mixin application. *)
@@ -789,7 +789,7 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 			^true
 		)
 	) : ()
-	public class Closure _cannotInstantiate = Object new (
+	public class Closure _cannotInstantiate = (
 	) (
 		public cull: arg1 = (
 			0 = numArgs ifTrue: [ ^self value ].
@@ -896,7 +896,7 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 			halt
 		)
 	) : ()
-	public class Collection new = Object new (
+	public class Collection new = (
 	) (
 		public allSatisfy: predicate <[:E | Boolean]> ^<Boolean> = (
 			self do: [:element <E> | (predicate value: element) ifFalse: [ ^false ] ].
@@ -1018,7 +1018,7 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 			^count
 		)
 	) : ()
-	public class Ephemeron new = Object new (
+	public class Ephemeron new = (
 		|
 			public key (* Must be slot 1, known to the VM. *)
 			public value (* Must be slot 2, known to the VM. *)
@@ -1028,7 +1028,7 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 		
 	) (
 	) : ()
-	public class Exception new = Object new (
+	public class Exception new = (
 		|
 			private signalActivation <Activation>
 			private handlerActivation <Activation>
@@ -1487,7 +1487,7 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 			^Fraction reducedNumerator: numer denominator: denom
 		)
 	)
-	public class IdentityMap new: capacity = Object new (
+	public class IdentityMap new: capacity = (
 		|
 			table ::= Array new: capacity.
 			public size ::= 0.
@@ -1624,7 +1624,7 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 	)
 	public class InstanceMixin new
 	(* :exemplar: mixinOf: MessageNotUnderstood *)
-	 = Object new (
+	 = (
 		(* An instance-side mixin is the difference between a (non-meta) class and its superclass: a set of additional methods, slots and nested class declarations. Instance-side mixins always have a paired class-side mixin.
 
 Raw mixins are not user accessible. Mixins are implicitly extracted from a class during mixin application. *)
@@ -1962,7 +1962,7 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 	public class MediumInteger _cannotInstantiate = Integer new (
 	) (
 	) : ()
-	public class Message selector: s <String> arguments: a = Object new (
+	public class Message selector: s <String> arguments: a = (
 		|
 			public selector <Symbol> = s asSymbol.
 			public arguments <Array[Object]> = a.
@@ -2004,7 +2004,7 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 			^thisClass printString , ' class'
 		)
 	) : ()
-	public class Method new = Object new (
+	public class Method new = (
 		|
 			public header <Integer> (* Must be slot 1, known to the VM. *)
 			public literals <Array> (* Must be slot 2, known to the VM. *)
@@ -2101,7 +2101,7 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 			^accessor
 		)
 	)
-	public class MethodMetadata source: s <String> isLazy: b <Boolean> = Object new (
+	public class MethodMetadata source: s <String> isLazy: b <Boolean> = (
 		|
 			public source <String> = s.
 			public isLazy <Boolean> = b.
@@ -2121,7 +2121,7 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 			^'NonBooleanReceiver ' , receiver printString
 		)
 	) : ()
-	public class Number new = Object new (
+	public class Number new = (
 	) (
 		public * other <Number> ^<Number> = (
 			(* Answer the receiver multiplied by the argument. *)
@@ -2338,7 +2338,7 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 			^nil (* To match the inlined version *)
 		)
 	) : ()
-	public class Proxy new = Object new (
+	public class Proxy new = (
 		(* Proxy overrides all the public members of Object with protected ones. One can implement a total proxy by subclassing and implementing only #doesNotUnderstand:. *)
 		
 	) (
@@ -2361,7 +2361,7 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 	public class SmallInteger _cannotInstantiate = Integer new (
 	) (
 	) : ()
-	public class Stopwatch new = Object new (
+	public class Stopwatch new = (
 		|
 			private cumulativeNanos ::= 0.
 			private startNanos
@@ -2393,7 +2393,7 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 			[ stopwatch elapsedMilliseconds < millis ] whileTrue
 		)
 	)
-	public class String _cannotInstantiate = Object new (
+	public class String _cannotInstantiate = (
 	) (
 		public , other <String> ^<String> = (
 			(* :literalmessage: primitive: 115 *)
@@ -2671,7 +2671,7 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 			halt
 		)
 	)
-	public class StringBuilder new: capacity <Integer> = Object new (
+	public class StringBuilder new: capacity <Integer> = (
 		|
 			size_ ::= 0.
 			data ::= ByteArray new: capacity.
@@ -2763,7 +2763,7 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 			^true
 		)
 	) : ()
-	public class UndefinedObject _cannotInstantiate = Object new (
+	public class UndefinedObject _cannotInstantiate = (
 	) (
 		public ifNil: nilBlock ^<Object> = (
 			^nilBlock numArgs = 0 ifTrue: [ nilBlock value ]
@@ -2823,7 +2823,7 @@ Raw mixins are not user accessible. Mixins are implicitly extracted from a class
 			^(ArgumentError value: size) signal
 		)
 	)
-	public class WeakMap new = Object new (
+	public class WeakMap new = (
 		|
 			private table ::= Array new: 256. (* A fairly large initial capacity because the expected usage is one per module. *)
 			private used ::= 0.

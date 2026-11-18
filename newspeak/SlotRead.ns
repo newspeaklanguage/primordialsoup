@@ -1,6 +1,6 @@
 Newspeak3
 'Benchmarks'
-class SlotRead usingPlatform: p = Object new (
+class SlotRead usingPlatform: p = (
 	|
 		slot
 	|

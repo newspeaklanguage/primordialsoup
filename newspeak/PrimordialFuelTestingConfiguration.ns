@@ -1,6 +1,6 @@
 Newspeak3
 'NS2PrimordialSoup'
-class PrimordialFuelTestingConfiguration packageTestsUsing: manifest = Object new (
+class PrimordialFuelTestingConfiguration packageTestsUsing: manifest = (
 	|
 		private PrimordialFuelTesting = manifest PrimordialFuelTesting.
 		private PrimordialFuelTestApp = manifest PrimordialFuelTestApp.

@@ -1,6 +1,6 @@
 Newspeak3
 'Root'
-class JSForPrimordialSoup usingPlatform: platform = Object new (
+class JSForPrimordialSoup usingPlatform: platform = (
 	|
 		public undefined = Alien withIndex: 0.
 		public global = Alien withIndex: 4.
@@ -8,7 +8,7 @@ class JSForPrimordialSoup usingPlatform: platform = Object new (
 		private handles <List> = platform actors handles.
 	|
 ) (
-	class Alien withIndex: i = Object new (
+	class Alien withIndex: i = (
 		(* Aliens are a capability-based API for a foreign function interface (FFI). On NS2JS, they allow Newspeak code to invoke JavaScript code and vice versa.
 
 An Alien is a Newspeak proxy for a JavaScript object. Upon receiving a message, an Alien expatriates the arguments, sends the message to the target JavaScript object, and alienates the result.

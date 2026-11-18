@@ -1,6 +1,6 @@
 Newspeak3
 'Benchmarks'
-class NLRLoop usingPlatform: p = Object new (
+class NLRLoop usingPlatform: p = (
 	|
 		array = {1. 2. 3. 4. 5. 6. }.
 	|

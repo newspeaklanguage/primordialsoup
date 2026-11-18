@@ -1,6 +1,6 @@
 Newspeak3
 'Benchmarks'
-class MethodFibonacci usingPlatform: p = Object new (
+class MethodFibonacci usingPlatform: p = (
 	(* A microbenchmark stressing method invocations and integer arithmetic.
 
 Copyright 2012 Google Inc.

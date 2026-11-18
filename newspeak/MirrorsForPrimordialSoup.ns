@@ -2,7 +2,7 @@ Newspeak3
 'Root'
 class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namespace: ns
 (* :exemplar: platform mirrors *)
- = Object new (
+ = (
 	|
 		private Collection = platform collections Collection.
 		private List = platform collections List.
@@ -30,7 +30,7 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 			scannerClass: parsing Scanner.
 	|
 ) (
-	public class ActivationMirror reflecting: activation thread: thr = Object new (
+	public class ActivationMirror reflecting: activation thread: thr = (
 		(* :bogus: This constructor should not be public. *)
 		
 		|
@@ -296,7 +296,7 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 			^ThreadMirror reflecting: thread
 		)
 	)
-	class AtomicInstaller new = Object new (
+	class AtomicInstaller new = (
 		|
 			private updateMixinsAndClasses <IdentityMap[OldObject, NewObject]>
 			private updateInstances <IdentityMap[OldObject, NewObject]>
@@ -544,7 +544,7 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 				]
 		)
 	) : ()
-	public class AtomicInstallWrapper new = Object new (
+	public class AtomicInstallWrapper new = (
 	) (
 		public install: builders <List[ClassDeclarationBuilder]> into: ns = (
 			| irs <List[IntermediateClassDeclaration]> = 
@@ -575,7 +575,7 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 				]
 		)
 	) : ()
-	public class ClassDeclarationBuilder fromIntermediate: ir = Object new (
+	public class ClassDeclarationBuilder fromIntermediate: ir = (
 		|
 			private intermediate <IntermediateClassDeclaration> = ir.
 			public header <ClassHeaderBuilder> = ClassHeaderBuilder fromIntermediate: ir.
@@ -702,7 +702,7 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 			^builder
 		)
 	)
-	private class ClassDeclarationMirror reflecting: mxn = Object new (
+	private class ClassDeclarationMirror reflecting: mxn = (
 		|
 			mixin <InstanceMixin> = mxn.
 		|
@@ -800,7 +800,7 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 			sb writeln: ')'
 		)
 	) : ()
-	private class ClassHeaderBuilder fromIntermediate: ir = Object new (
+	private class ClassHeaderBuilder fromIntermediate: ir = (
 		|
 			private intermediate <IntermediateClassDeclaration> = ir.
 		|
@@ -892,7 +892,7 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 			intermediate instanceSide slots: newIR instanceSide slots
 		)
 	) : ()
-	private class ClassHeaderMirror reflecting: mxn = Object new (
+	private class ClassHeaderMirror reflecting: mxn = (
 		|
 			mixin <InstanceMixin> = mxn.
 		|
@@ -1000,7 +1000,7 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 				]
 		)
 	) : ()
-	public class ClassMirror reflecting: behavior = Object new (
+	public class ClassMirror reflecting: behavior = (
 		|
 			public reflectee <Behavior> = behavior.
 		|
@@ -1103,7 +1103,7 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 			halt
 		)
 	)
-	public class ClosureMirror reflecting: c <Closure> = Object new (
+	public class ClosureMirror reflecting: c <Closure> = (
 		|
 			public reflectee <Closure> = c.
 			definingActivation <Activation> = definingActivationOf: c.
@@ -1253,7 +1253,7 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 			^mixinMirror isMethodMirrorForLazySlot: aLowLevelActivation method
 		)
 	)
-	public class LazySlotBuilder reflecting: ir <IntermediateLazySlot> in: mb <MixinBuilder> = Object new (
+	public class LazySlotBuilder reflecting: ir <IntermediateLazySlot> in: mb <MixinBuilder> = (
 		|
 			public prvtIntermediate <IntermediateLazySlot> = ir.
 			prvtMixinBuilder <MixinBuilder> = mb.
@@ -1278,7 +1278,7 @@ class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namesp
 			^prvtIntermediate source
 		)
 	) : ()
-	public class LazySlotMirror reflecting: m <Symbol> in: em <MixinMirror> = Object new (
+	public class LazySlotMirror reflecting: m <Symbol> in: em <MixinMirror> = (
 		(* The mirror for a particular lazy slot. Every lazy slot consist of an underlying storage location (the cache) and 2-3 methods: 
 
 a. The getter, which tests if the slot is nil, and if so, calls the init method (see (b) below) to compute the value and set the underlying storage. In any case it returns the value stored in the slot.  This method is sometimes referred to as the the main method of the lazy slot.
@@ -1391,14 +1391,14 @@ c. If the slot is mutable, there will be a third method, which is an ordinary se
 			^#lazyslots
 		)
 	)
-	private class LocalSlotMirror name: n value: v = Object new (
+	private class LocalSlotMirror name: n value: v = (
 		|
 			public name <Symbol> = n.
 			public value <ObjectMirror> = v.
 		|
 	) (
 	) : ()
-	private class MethodBuilder reflecting: ir in: builder = Object new (
+	private class MethodBuilder reflecting: ir in: builder = (
 		|
 			private intermediate = ir.
 			public definingMixin = builder.
@@ -1414,7 +1414,7 @@ c. If the slot is mutable, there will be a third method, which is an ordinary se
 			^intermediate source
 		)
 	) : ()
-	private class MethodMirror reflecting: m = Object new (
+	private class MethodMirror reflecting: m = (
 		|
 			method <Method> = m.
 		|
@@ -1544,7 +1544,7 @@ c. If the slot is mutable, there will be a third method, which is an ordinary se
 			^mirrors size
 		)
 	) : ()
-	private class MixinBuilder fromIntermediate: ir = Object new (
+	private class MixinBuilder fromIntermediate: ir = (
 		|
 			private intermediate <IntermediateMixin> = ir.
 		|
@@ -1560,7 +1560,7 @@ c. If the slot is mutable, there will be a third method, which is an ordinary se
 			^true
 		)
 	) : ()
-	private class MixinMirror reflecting: mxn = Object new (
+	private class MixinMirror reflecting: mxn = (
 		|
 			mixin <AbstractMixin> = mxn.
 		|
@@ -1814,7 +1814,7 @@ c. If the slot is mutable, there will be a third method, which is an ordinary se
 			^List new: capacity
 		)
 	) : ()
-	public class ObjectMirror reflecting: object = Object new (
+	public class ObjectMirror reflecting: object = (
 		|
 			public reflectee = object.
 		|
@@ -1935,7 +1935,7 @@ c. If the slot is mutable, there will be a third method, which is an ordinary se
 			slotOf: reflectee at: index put: value
 		)
 	) : ()
-	private class Simulator new = Object new (
+	private class Simulator new = (
 		|
 			public activation
 		|
@@ -2604,7 +2604,7 @@ c. If the slot is mutable, there will be a third method, which is an ordinary se
 			^3
 		)
 	)
-	private class SlotDeclarationMirror name: n isMutable: m accessModifier: a mixin: mxn = Object new (
+	private class SlotDeclarationMirror name: n isMutable: m accessModifier: a mixin: mxn = (
 		|
 			public name = n.
 			public isMutable = m.
@@ -2635,7 +2635,7 @@ c. If the slot is mutable, there will be a third method, which is an ordinary se
 		|
 	) (
 	) : ()
-	private class Thread new = Object new (
+	private class Thread new = (
 		|
 			public state ::= #initial.
 			public result
@@ -2905,7 +2905,7 @@ c. If the slot is mutable, there will be a third method, which is an ordinary se
 			suspendedActivation:: activation
 		)
 	) : ()
-	private class ThreadMirror reflecting: t = Object new (
+	private class ThreadMirror reflecting: t = (
 		|
 			thread = t.
 		|

@@ -1,6 +1,6 @@
 Newspeak3
 'Root'
-class ActorsForPrimordialSoup usingPlatform: p = Object new (
+class ActorsForPrimordialSoup usingPlatform: p = (
 	(* The actors module. It not only creates actors, but manages the Newspeak message loop, which controls the scheduling of all actors and the connection with the JS event loop when running in the web browser.
 
 This module has a slot, #handlerOfLastResort, which can be set via the method #ultimateExceptionHandler: to an application defined  exception handler which will be called in the event of an unhandled exception. This handler is useful for web applications, which are invoked from the JS event loop.  Because they are repeatedly reinvoked, they cannot rely on a conventional exception handler in their #main:args: method. Instead, their handler should set up a presenter that will be displayed to the user. After the handler runs, the system will return to the JS event loop, and the app will continue to interact via the UI the handler created. *)
@@ -23,7 +23,7 @@ This module has a slot, #handlerOfLastResort, which can be set via the method #u
 		private handlerOfLastResort <[:Exception :Activation | Object]>
 	|
 ) (
-	public class Actor named: debugName <String> = Object new (
+	public class Actor named: debugName <String> = (
 		|
 			private (* N.B. Do not leak to subinstances. *) internalActor = InternalActor named: debugName.
 		|
@@ -46,7 +46,7 @@ This module has a slot, #handlerOfLastResort, which can be set via the method #u
 			unimplemented
 		)
 	) : ()
-	class EventualSend receiver: r selector: s arguments: a resolver: y = Object new (
+	class EventualSend receiver: r selector: s arguments: a resolver: y = (
 		(* A message in an actor's event queue. Every turn starts by sending #deliver.
 
 Note that all slots contain objects that belong to the actor in which the message is queued, even the resolver. *)
@@ -103,7 +103,7 @@ Note that all slots contain objects that belong to the actor in which the messag
 			] on: Exception do: [:e | 'Exception in turn without resolver' out ]
 		)
 	) : ()
-	class EventualSendReactor selector: s arguments: a resolver: r = Object new (
+	class EventualSendReactor selector: s arguments: a resolver: r = (
 		(* An eventual-send to a promise.
 
 Note that all slots contain objects that belong to the actor which performed the eventual send. *)
@@ -136,7 +136,7 @@ Note that all slots contain objects that belong to the actor which performed the
 						arguments: arguments))
 		)
 	) : ()
-	class InternalActor named: n = Object new (
+	class InternalActor named: n = (
 		|
 			name <String> = n.
 			head <PendingDelivery>
@@ -347,7 +347,7 @@ Note that all slots contain objects that belong to the actor which performed the
 			^createFarReferenceTo: target in: currentActor for: targetActor
 		)
 	) : ()
-	class InternalRef new = Object new (
+	class InternalRef new = (
 	) (
 		public checkCycle ^<Boolean> = (
 			subclassResponsibility
@@ -462,7 +462,7 @@ Note that all slots contain objects that belong to the actor which performed the
 			^(InternalRemotePromise target: target targetsActor: targetsActor) externalRef
 		)
 	) : ()
-	class InternalTimer new = Object new (
+	class InternalTimer new = (
 		|
 			callback
 			actor
@@ -534,7 +534,7 @@ Note that all slots contain objects that belong to the actor which performed the
 				do: [:e | 'Exception in timer callback' out ]
 		)
 	) : ()
-	class MessageLoop application: a platform: p = Object new (
+	class MessageLoop application: a platform: p = (
 		|
 			application ::= a.
 			platform ::= p.
@@ -659,7 +659,7 @@ Note that all slots contain objects that belong to the actor which performed the
 			exit: -1
 		)
 	) : ()
-	public class Port fromId: i = Object new (
+	public class Port fromId: i = (
 		|
 			public id = i.
 			public handler
@@ -714,7 +714,7 @@ Note that all slots contain objects that belong to the actor which performed the
 			^port
 		)
 	)
-	class PromiseFactories new = Object new (
+	class PromiseFactories new = (
 	) (
 		public all: refs <List[Promise[V, E]]> ^<Promise[List[V], E]> = (
 			(* Answers a promise that resolves with all the resolutions of refs, or the first problem. *)
@@ -752,7 +752,7 @@ Note that all slots contain objects that belong to the actor which performed the
 			
 		)
 	) : ()
-	class RedirectReactor from: s to: d resolver: r = Object new (
+	class RedirectReactor from: s to: d resolver: r = (
 		(* A bridge between InternalResolvers in different actors. *)
 		
 		|
@@ -783,7 +783,7 @@ Note that all slots contain objects that belong to the actor which performed the
 				resolver: nil
 		)
 	) : ()
-	class Ref wrapping: ref = Object new (
+	class Ref wrapping: ref = (
 		|
 			internalRef = ref.
 		|
@@ -806,7 +806,7 @@ Note that all slots contain objects that belong to the actor which performed the
 			^super yourself
 		)
 	) : ()
-	public class Resolver new = Object new (
+	public class Resolver new = (
 		(* A Resolver represents the authority to resolve a Promise and is the control facet of the promise's eventual resolution. *)
 		
 		|
@@ -824,7 +824,7 @@ Note that all slots contain objects that belong to the actor which performed the
 			^true
 		)
 	) : ()
-	public class Timer wrapping: i = Object new (
+	public class Timer wrapping: i = (
 		|
 			private internalTimer = i.
 		|
@@ -850,7 +850,7 @@ Note that all slots contain objects that belong to the actor which performed the
 			^external
 		)
 	)
-	class TimerHeap new = Object new (
+	class TimerHeap new = (
 		|
 			private table ::= Array new: 32.
 			private used ::= 0.
@@ -949,7 +949,7 @@ Note that all slots contain objects that belong to the actor which performed the
 				]
 		)
 	) : ()
-	class WhenReactor onValue: v onError: e resolver: r = Object new (
+	class WhenReactor onValue: v onError: e resolver: r = (
 		(* A when-catch for a promise.
 
 Note that all slots contain objects that belong to the actor which sent #whenFulfilled:whenBroken. *)

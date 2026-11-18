@@ -2,7 +2,7 @@ Newspeak3
 'Root'
 class NewspeakPredictiveParsing usingPlatform: platform asts: asts
 (* :exemplar: NewspeakPredictiveParsing usingPlatform: platform asts: (NewspeakASTs usingPlatform: platform) *)
- = Object new (
+ = (
 	(* A predictive LL(3) parser for Newspeak.
 
 Faster than the CombinatorialParsing-based parser, and can be modified without requiring a platform reset.
@@ -52,7 +52,7 @@ Todo:
 		private VariableAST = asts VariableAST.
 	|
 ) (
-	public class CommonParser new = Object new (
+	public class CommonParser new = (
 	) (
 		public parseClassDeclaration: input <String>
 		(* :exemplar:  parseClassDeclaration: '
@@ -1663,7 +1663,7 @@ public class Exemplar usingPlatform: p = ( | List = p collections List. | ) (
 	) : ()
 	public class Scanner for: string
 	(* :exemplar: Scanner for: 'foo = (| | self id + 2. ^a: true b: nil c: [:x | x <-: bar: #ddd] d: {1. false})' *)
-	 = Object new (
+	 = (
 		(* Turns Newspeak source into a stream of tokens.
 
 The current token is available via #tokenKind, #tokenValue, #tokenStart, and #tokenEnd.
@@ -2133,7 +2133,7 @@ Frequency of Newspeak tokens:
 	) : ()
 	class Token value: v
 	(* :exemplar: Token value: 'A comment' *)
-	 = Object new (
+	 = (
 		(* Only used for class comments, where the AST expects a CombinatorialParsing-style Token. *)
 		
 		|

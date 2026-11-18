@@ -1,6 +1,6 @@
 Newspeak3
 'Mirrors'
-class MirrorTestingModel new = Object new (
+class MirrorTestingModel new = (
 ) (
 	public class Klass factory: arg = SuperKlass superFactory: arg (
 		|
@@ -13,21 +13,21 @@ class MirrorTestingModel new = Object new (
 			uninitializedSlot
 		|
 	) (
-		class DefaultNestedClass new = Object new (
+		class DefaultNestedClass new = (
 		) (
 		) : ()
-		public class Nested new = Object new (
+		public class Nested new = (
 		) (
 			nestedMethod = (
 			)
 		) : ()
-		private class PrivateNestedClass new = Object new (
+		private class PrivateNestedClass new = (
 		) (
 		) : ()
-		class ProtectedNestedClass new = Object new (
+		class ProtectedNestedClass new = (
 		) (
 		) : ()
-		public class PublicNestedClass new = Object new (
+		public class PublicNestedClass new = (
 		) (
 		) : ()
 		>>> binaryMethod = (
@@ -50,12 +50,12 @@ class MirrorTestingModel new = Object new (
 		public classMethod = (
 		)
 	)
-	public class SuperKlass superFactory: arg = Object new (
+	public class SuperKlass superFactory: arg = (
 		|
 			superSlot = arg.
 		|
 	) (
-		class SuperNestedClass new = Object new (
+		class SuperNestedClass new = (
 		) (
 		) : ()
 		superMethod = (

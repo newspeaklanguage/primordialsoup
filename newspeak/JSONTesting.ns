@@ -1,6 +1,6 @@
 Newspeak3
 'NS2PrimordialSoup'
-class JSONTesting usingPlatform: platform minitest: minitest json: json_ = Object new (
+class JSONTesting usingPlatform: platform minitest: minitest json: json_ = (
 	|
 		private TestContext = minitest TestContext.
 		private json = json_.

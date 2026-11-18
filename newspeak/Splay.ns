@@ -1,6 +1,6 @@
 Newspeak3
 'Benchmarks'
-class Splay usingPlatform: p = Object new (
+class Splay usingPlatform: p = (
 	(* This benchmark is based on a JavaScript log processing module used by the V8 profiler to generate execution time profiles for runs of JavaScript applications, and it effectively measures how fast the JavaScript engine is at allocating nodes and reclaiming the memory used for old nodes. Because of the way splay trees work, the engine also has to deal with a lot of changes to the large tree object graph.
 
 Copyright (c) 2012 Google Inc.
@@ -16,14 +16,14 @@ Copyright (c) 2011, the Dart project authors.  Please see the AUTHORS file for d
 	|
 	mysetup.
 ) (
-	class Leaf withTag: tag = Object new (
+	class Leaf withTag: tag = (
 		|
 			string ::= 'String for key ' , tag , ' in leaf node'.
 			array ::= {0. 1. 2. 3. 4. 5. 6. 7. 8. 9. }.
 		|
 	) (
 	) : ()
-	class Node key: k value: v = Object new (
+	class Node key: k value: v = (
 		|
 			public key = k.
 			public value = v.
@@ -43,7 +43,7 @@ Copyright (c) 2011, the Dart project authors.  Please see the AUTHORS file for d
 				]
 		)
 	) : ()
-	class Payload left: l right: r = Object new (
+	class Payload left: l right: r = (
 		|
 			left ::= l.
 			right ::= r.
@@ -56,7 +56,7 @@ Copyright (c) 2011, the Dart project authors.  Please see the AUTHORS file for d
 				right: (generate: depth - 1 with: tag)
 		)
 	)
-	class SplayTree new = Object new (
+	class SplayTree new = (
 		(* A splay tree is a self-balancing binary search tree with the additional property that recently accessed elements are quick to access again. It performs basic operations such as insertion, look-up and removal in O(log(n)) amortized time. *)
 		
 		|

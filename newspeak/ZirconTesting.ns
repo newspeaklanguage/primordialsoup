@@ -1,6 +1,6 @@
 Newspeak3
 'Fuchsia'
-class ZirconTesting usingPlatform: platform minitest: minitest = Object new (
+class ZirconTesting usingPlatform: platform minitest: minitest = (
 	|
 		private zx = platform zircon.
 		private Channel = zx Channel.

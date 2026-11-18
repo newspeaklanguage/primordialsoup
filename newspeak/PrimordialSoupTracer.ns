@@ -1,6 +1,6 @@
 Newspeak3
 'NS2PrimordialSoup'
-class PrimordialSoupTracer packageUsing: manifest = Object new (
+class PrimordialSoupTracer packageUsing: manifest = (
 	(* Bootstraps Primordial Soup snapshots from Squeak. *)
 	
 	|
@@ -12,7 +12,7 @@ class PrimordialSoupTracer packageUsing: manifest = Object new (
 		compilerApp = manifest CompilerApp packageUsing: manifest.
 	|
 ) (
-	class Tracer usingPlatform: p with: runtime source: ks = Object new (
+	class Tracer usingPlatform: p with: runtime source: ks = (
 		|
 			List = p collections List.
 			IdentityMap = p squeak IdentityDictionary.
@@ -358,7 +358,7 @@ class PrimordialSoupTracer packageUsing: manifest = Object new (
 					]
 			)
 		) : ()
-		class Cluster new = Object new (
+		class Cluster new = (
 			|
 				public nodesSize
 				public edgesSize

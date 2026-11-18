@@ -2,7 +2,7 @@ Newspeak3
 'Root'
 class PrimordialFuel usingPlatform: p internalKernel: k
 (* :exemplar: platform victoryFuel *)
- = Object new (
+ = (
 	|
 		private List = p collections List.
 		private IdentityMap = k IdentityMap.
@@ -31,7 +31,7 @@ class PrimordialFuel usingPlatform: p internalKernel: k
 		private ClassMixin = k ClassMixin.
 	|
 ) (
-	public class Deserializer new = Object new (
+	public class Deserializer new = (
 		|
 			stream <ReadStream>
 			clusters <Array>
@@ -39,7 +39,7 @@ class PrimordialFuel usingPlatform: p internalKernel: k
 			nextRefIndex <Integer>
 		|
 	) (
-		class ActivationCluster new = Object new (
+		class ActivationCluster new = (
 			|
 				firstRefIndex <Integer>
 				lastRefIndex <Integer>
@@ -57,7 +57,7 @@ class PrimordialFuel usingPlatform: p internalKernel: k
 				lastRefIndex:: nextRefIndex - 1
 			)
 		) : ()
-		class ArrayCluster new = Object new (
+		class ArrayCluster new = (
 			|
 				firstRefIndex <Integer>
 				lastRefIndex <Integer>
@@ -78,7 +78,7 @@ class PrimordialFuel usingPlatform: p internalKernel: k
 				lastRefIndex:: nextRefIndex - 1
 			)
 		) : ()
-		class ByteArrayCluster new = Object new (
+		class ByteArrayCluster new = (
 		) (
 			public adoptInstances = (
 			)
@@ -94,7 +94,7 @@ class PrimordialFuel usingPlatform: p internalKernel: k
 					]
 			)
 		) : ()
-		class ClosureCluster new = Object new (
+		class ClosureCluster new = (
 			|
 				firstRefIndex <Integer>
 				lastRefIndex <Integer>
@@ -114,7 +114,7 @@ class PrimordialFuel usingPlatform: p internalKernel: k
 				lastRefIndex:: nextRefIndex - 1
 			)
 		) : ()
-		class EphemeronCluster new = Object new (
+		class EphemeronCluster new = (
 			|
 				firstRefIndex <Integer>
 				lastRefIndex <Integer>
@@ -140,7 +140,7 @@ class PrimordialFuel usingPlatform: p internalKernel: k
 				lastRefIndex:: nextRefIndex - 1
 			)
 		) : ()
-		class IntegerCluster new = Object new (
+		class IntegerCluster new = (
 		) (
 			public adoptInstances = (
 			)
@@ -163,7 +163,7 @@ class PrimordialFuel usingPlatform: p internalKernel: k
 					]
 			)
 		) : ()
-		class RegularObjectCluster for: format = Object new (
+		class RegularObjectCluster for: format = (
 			|
 				numSlots <Integer> = format.
 				klass
@@ -193,7 +193,7 @@ class PrimordialFuel usingPlatform: p internalKernel: k
 				lastRefIndex:: nextRefIndex - 1
 			)
 		) : ()
-		class StringCluster new = Object new (
+		class StringCluster new = (
 		) (
 			public adoptInstances = (
 			)
@@ -212,7 +212,7 @@ class PrimordialFuel usingPlatform: p internalKernel: k
 					]
 			)
 		) : ()
-		class WeakArrayCluster new = Object new (
+		class WeakArrayCluster new = (
 			|
 				firstRefIndex <Integer>
 				lastRefIndex <Integer>
@@ -273,7 +273,7 @@ class PrimordialFuel usingPlatform: p internalKernel: k
 			nextRefIndex:: 1 + nextRefIndex
 		)
 	) : ()
-	class ReadStream over: bytes = Object new (
+	class ReadStream over: bytes = (
 		|
 			data = bytes.
 			public position ::= 0.
@@ -342,7 +342,7 @@ class PrimordialFuel usingPlatform: p internalKernel: k
 			unreachable
 		)
 	) : ()
-	public class Serializer new = Object new (
+	public class Serializer new = (
 		|
 			stream = WriteStream new.
 			clusters = IdentityMap new: 32.
@@ -353,7 +353,7 @@ class PrimordialFuel usingPlatform: p internalKernel: k
 			nextRefIndex
 		|
 	) (
-		class ActivationCluster new = Object new (
+		class ActivationCluster new = (
 			|
 				objects = List new.
 			|
@@ -396,7 +396,7 @@ class PrimordialFuel usingPlatform: p internalKernel: k
 				
 			)
 		) : ()
-		class ArrayCluster new = Object new (
+		class ArrayCluster new = (
 			|
 				objects = List new.
 			|
@@ -433,7 +433,7 @@ class PrimordialFuel usingPlatform: p internalKernel: k
 					]
 			)
 		) : ()
-		class BehaviorCluster for: k = Object new (
+		class BehaviorCluster for: k = (
 			|
 				klass = k.
 				numSlots = slotOf: k at: 6.
@@ -463,7 +463,7 @@ class PrimordialFuel usingPlatform: p internalKernel: k
 				objects do: [:object | registerRef: object ]
 			)
 		) : ()
-		class ByteArrayCluster new = Object new (
+		class ByteArrayCluster new = (
 			|
 				objects = List new.
 			|
@@ -485,7 +485,7 @@ class PrimordialFuel usingPlatform: p internalKernel: k
 					]
 			)
 		) : ()
-		class ClosureCluster new = Object new (
+		class ClosureCluster new = (
 			|
 				objects = List new.
 			|
@@ -516,7 +516,7 @@ class PrimordialFuel usingPlatform: p internalKernel: k
 					]
 			)
 		) : ()
-		class EphemeronCluster new = Object new (
+		class EphemeronCluster new = (
 			|
 				objects = List new.
 			|
@@ -545,7 +545,7 @@ class PrimordialFuel usingPlatform: p internalKernel: k
 				objects do: [:object | registerRef: object ]
 			)
 		) : ()
-		class FloatCluster new = Object new (
+		class FloatCluster new = (
 			|
 				objects = List new.
 			|
@@ -564,7 +564,7 @@ class PrimordialFuel usingPlatform: p internalKernel: k
 					]
 			)
 		) : ()
-		class IntegerCluster new = Object new (
+		class IntegerCluster new = (
 			|
 				objects = List new.
 				large = List new.
@@ -614,7 +614,7 @@ class PrimordialFuel usingPlatform: p internalKernel: k
 					]
 			)
 		) : ()
-		class RegularObjectCluster for: k = Object new (
+		class RegularObjectCluster for: k = (
 			|
 				klass = k.
 				numSlots = slotOf: k at: 6.
@@ -637,7 +637,7 @@ class PrimordialFuel usingPlatform: p internalKernel: k
 				objects do: [:object | registerRef: object ]
 			)
 		) : ()
-		class StringCluster new = Object new (
+		class StringCluster new = (
 			|
 				noncanonical = List new.
 				canonical = List new.
@@ -670,7 +670,7 @@ class PrimordialFuel usingPlatform: p internalKernel: k
 					]
 			)
 		) : ()
-		class WeakArrayCluster new = Object new (
+		class WeakArrayCluster new = (
 			|
 				objects = List new.
 			|
@@ -962,7 +962,7 @@ class PrimordialFuel usingPlatform: p internalKernel: k
 			^super writeWeakRef: (replacements atOrItself: object)
 		)
 	) : ()
-	class TemporaryClass withFormat: fmt = Object new (
+	class TemporaryClass withFormat: fmt = (
 		|
 			superclass = Object.
 			methods = {}.
@@ -980,7 +980,7 @@ class PrimordialFuel usingPlatform: p internalKernel: k
 			halt
 		)
 	) : ()
-	class WriteStream new = Object new (
+	class WriteStream new = (
 		|
 			data ::= ByteArray new: 32 * 1024.
 			public position ::= 0.

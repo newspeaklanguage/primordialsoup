@@ -1,6 +1,6 @@
 Newspeak3
 'Root'
-class RuntimeForPrimordialSoup packageRuntimeUsing: manifest = Object new (
+class RuntimeForPrimordialSoup packageRuntimeUsing: manifest = (
 	|
 		private Kernel = manifest Kernel.
 		public InternalKernel = manifest KernelForPrimordialSoup.
@@ -11,7 +11,7 @@ class RuntimeForPrimordialSoup packageRuntimeUsing: manifest = Object new (
 		private Host = manifest Host.
 	|
 ) (
-	public class Platform internalKernel: ik = Object new (
+	public class Platform internalKernel: ik = (
 		|
 			public kernel = Kernel wrapping: ik.
 			public collections = Collections usingInternalKernel: ik.

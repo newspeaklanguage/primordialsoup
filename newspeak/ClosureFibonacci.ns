@@ -1,6 +1,6 @@
 Newspeak3
 'Benchmarks'
-class ClosureFibonacci usingPlatform: p = Object new (
+class ClosureFibonacci usingPlatform: p = (
 	(* A microbenchmark stressing closure evalutation and integer arithmetic.
 
 Copyright 2012 Google Inc.

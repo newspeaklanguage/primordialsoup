@@ -1,6 +1,6 @@
 Newspeak3
 'Benchmarks'
-class NLRImmediate usingPlatform: p = Object new (
+class NLRImmediate usingPlatform: p = (
 ) (
 	public bench = (
 		1 to: 10000 do: [:i | self nlr ]

@@ -1,6 +1,6 @@
 Newspeak3
 'Benchmarks'
-class ParserCombinators usingPlatform: p = Object new (
+class ParserCombinators usingPlatform: p = (
 	(* This benchmark parses and evaluates a fixed string using a simple arithmetic
 expresssion grammar built from parser combinators. It is an example of a
 program that is natural to write in an exception-oriented style, or with
@@ -78,7 +78,7 @@ the License at http://www.apache.org/licenses/LICENSE-2.0 *)
 			onError value
 		)
 	) : ()
-	class CombinatorialParser new = Object new (
+	class CombinatorialParser new = (
 		|
 			compressed <Boolean> ::= false.
 		|
@@ -136,7 +136,7 @@ the License at http://www.apache.org/licenses/LICENSE-2.0 *)
 			Error signal: 'Forward reference parsers should be compressed away before parsing'
 		)
 	) : ()
-	class ParserContext over: s = Object new (
+	class ParserContext over: s = (
 		|
 			content <String> = s.
 			public position <Integer> ::= 0.

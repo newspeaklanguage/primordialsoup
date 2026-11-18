@@ -1,6 +1,6 @@
 Newspeak3
 'Root'
-class Host usingPlatform: p = Object new (
+class Host usingPlatform: p = (
 	|
 		private js = p js.
 		private Resolver = p actors Resolver.
@@ -14,7 +14,7 @@ class Host usingPlatform: p = Object new (
 	lazy public fetcher = Fetcher new.
 	lazy private global = js global.
 	lazy public performer = Performer new.
-	public class Fetcher new = Object new (
+	public class Fetcher new = (
 		(* An attenuated web-read capability: hand an application this object instead of platform js. It can GET a URL and nothing else. Results are Newspeak promises - fulfilled with the response body text, broken with a legible reason. *)
 		
 	) (
@@ -54,7 +54,7 @@ class Host usingPlatform: p = Object new (
 			^fetchTextFor: url headers: hdrs body: body
 		)
 	) : ()
-	public class Performer new = Object new (
+	public class Performer new = (
 		(* Runs one request/reply exchange that the caller carries out itself, and
 	 answers a Newspeak promise of the reply text.
 

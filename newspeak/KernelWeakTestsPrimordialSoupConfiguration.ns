@@ -1,6 +1,6 @@
 Newspeak3
 'NS2PrimordialSoup'
-class KernelWeakTestsPrimordialSoupConfiguration packageTestsUsing: manifest = Object new (
+class KernelWeakTestsPrimordialSoupConfiguration packageTestsUsing: manifest = (
 	|
 		private KernelWeakTests = manifest KernelWeakTests.
 	|

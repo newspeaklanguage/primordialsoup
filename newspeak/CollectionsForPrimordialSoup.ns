@@ -2,7 +2,7 @@ Newspeak3
 'Root'
 class CollectionsForPrimordialSoup usingInternalKernel: ik
 (* :exemplar:  platform collections *)
- = Object new (
+ = (
 	|
 		public Collection = ik Collection.
 		private ArgumentError = ik ArgumentError.

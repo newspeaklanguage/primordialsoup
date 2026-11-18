@@ -1,6 +1,6 @@
 Newspeak3
 'NS2PrimordialSoup'
-class TestRunner packageUsing: manifest = Object new (
+class TestRunner packageUsing: manifest = (
 	|
 		Minitest = manifest Minitest.
 		testConfigs = {manifest KernelTestsConfiguration packageTestsUsing: manifest. manifest KernelWeakTestsPrimordialSoupConfiguration packageTestsUsing: manifest. manifest MinitestTestsConfiguration packageTestsUsing: manifest. manifest AccessModifierTestingConfiguration packageTestsUsing: manifest. manifest ActorsTestingConfigurationForPrimordialSoup packageTestsUsing: manifest. manifest CollectionsTestingConfiguration packageTestsUsing: manifest. manifest PrimordialFuelTestingConfiguration packageTestsUsing: manifest. manifest MirrorTestingConfiguration packageTestsUsing: manifest. manifest MirrorBuilderTestingConfiguration packageTestsUsing: manifest. manifest ActivationMirrorTestingConfiguration packageTestsUsing: manifest. manifest ZirconTestingConfiguration packageTestsUsing: manifest. manifest JSTestingConfiguration packageTestsUsing: manifest. manifest JSONTestingConfiguration packageTestsUsing: manifest. manifest NS2PrimordialSoupCompilerTestingConfiguration packageTestsUsing: manifest. }.

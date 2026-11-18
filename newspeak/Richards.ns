@@ -1,6 +1,6 @@
 Newspeak3
 'Benchmarks'
-class Richards usingPlatform: ignore = Object new (
+class Richards usingPlatform: ignore = (
 	(* An OS kernel simulation benchmark, originally written in BCPL by Martin Richards.
 
 This version derived from the Dart Ton80 version. *)
@@ -110,7 +110,7 @@ This version derived from the Dart Ton80 version. *)
 			^scheduler release: ID_DEVICE_B
 		)
 	) : ()
-	class Packet link: l identity: i kind: k = Object new (
+	class Packet link: l identity: i kind: k = (
 		(* A simple package of data that is manipulated by the tasks.  The exact layout of the payload data carried by a packet is not importaint, and neither is the nature of the work performed on packets by the tasks. Besides carrying data, packets form linked lists and are hence used both as data and worklists. *)
 		
 		|
@@ -139,7 +139,7 @@ This version derived from the Dart Ton80 version. *)
 			^queueHead
 		)
 	) : ()
-	class Scheduler new = Object new (
+	class Scheduler new = (
 		(* A scheduler can be used to schedule a set of tasks based on their relative priorities.  Scheduling is done by maintaining a list of task control blocks which holds tasks and the data queue they are processing. *)
 		
 		|
@@ -235,7 +235,7 @@ This version derived from the Dart Ton80 version. *)
 			^currentTcb
 		)
 	) : ()
-	class Task on: s = Object new (
+	class Task on: s = (
 		(* Abstract task that manipulates work packets. *)
 		
 		|
@@ -248,7 +248,7 @@ This version derived from the Dart Ton80 version. *)
 			subclassResponsibility
 		)
 	) : ()
-	class TaskControlBlock link: l id: i priority: p queue: q task: t = Object new (
+	class TaskControlBlock link: l id: i priority: p queue: q task: t = (
 		(* A task control block manages a task and the queue of work packages associated with it. *)
 		
 		|
