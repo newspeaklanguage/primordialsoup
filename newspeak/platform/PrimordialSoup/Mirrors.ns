@@ -1,6 +1,6 @@
 Newspeak3
-'Root'
-class MirrorsForPrimordialSoup usingPlatform: platform internalKernel: ik namespace: ns
+'PrimordialSoup'
+class Mirrors usingPlatform: platform internalKernel: ik namespace: ns
 (* :exemplar: platform mirrors *)
  = (
 	|

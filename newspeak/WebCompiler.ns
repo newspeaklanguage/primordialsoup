@@ -10,8 +10,8 @@ WebCompiler.vfuel \
     *.png \
     CodeMirror/lib/codemirror.js \
     CodeMirror/addon/display/autorefresh.js \
-    RuntimeWithMirrorsForPrimordialSoup HopscotchWebIDE HopscotchWebIDE.vfuel \
-    RuntimeWithMirrorsForPrimordialSoup Ampleforth Ampleforth.vfuel \
+    PrimordialSoup/RuntimeWithMirrors HopscotchWebIDE HopscotchWebIDE.vfuel \
+    PrimordialSoup/RuntimeWithMirrors Ampleforth Ampleforth.vfuel \
 
 Platform namespaces (PLATFORM_NAMESPACES_DESIGN_2026-11-18.md in the newspeak repository): a module loaded from a directory platform/P/ (for example platform/Eurasia/Collections.ns) belongs to platform P, and is named P/Collections. A runtime named P/Runtime runs on platform P: its manifest, and its application's, answer manifest Collections with P/Collections if there is one, else with Collections. manifest P answers platform P's own modules: manifest JavaScript Collections. A runtime named without a platform resolves names as before. *)
 	

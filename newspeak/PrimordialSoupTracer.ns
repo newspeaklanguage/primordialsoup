@@ -4,8 +4,8 @@ class PrimordialSoupTracer packageUsing: manifest = (
 	(* Bootstraps Primordial Soup snapshots from Squeak. *)
 	
 	|
-		runtime = manifest RuntimeForPrimordialSoup packageRuntimeUsing: manifest.
-		runtimeWithMirrors = manifest RuntimeWithMirrorsForPrimordialSoup packageRuntimeUsing: manifest.
+		runtime = manifest Runtime packageRuntimeUsing: manifest.
+		runtimeWithMirrors = manifest RuntimeWithMirrors packageRuntimeUsing: manifest.
 		helloApp = manifest HelloApp packageUsing: manifest.
 		testApp = manifest TestRunner packageUsing: manifest.
 		benchmarkApp = manifest BenchmarkRunner packageUsing: manifest.

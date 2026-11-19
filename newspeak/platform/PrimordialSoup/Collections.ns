@@ -1,6 +1,6 @@
 Newspeak3
-'Root'
-class CollectionsForPrimordialSoup usingInternalKernel: ik
+'PrimordialSoup'
+class Collections usingInternalKernel: ik
 (* :exemplar:  platform collections *)
  = (
 	|

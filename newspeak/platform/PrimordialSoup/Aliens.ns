@@ -1,6 +1,6 @@
 Newspeak3
-'Root'
-class JSForPrimordialSoup usingPlatform: platform = (
+'PrimordialSoup'
+class Aliens usingPlatform: platform = (
 	|
 		public undefined = Alien withIndex: 0.
 		public global = Alien withIndex: 4.

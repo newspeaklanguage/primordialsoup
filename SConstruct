@@ -257,30 +257,37 @@ def BuildVM(cxx, arch, target_os, debug, sanitize):
 
 
 def BuildSnapshots(outdir, host_vm):
-  nssources = Glob(os.path.join('newspeak', '*.ns'))
+  # psoup's platform modules (newspeak/platform/PrimordialSoup) by their role
+  # names: one platform, so the bootstrap compiler can key them flat. They go
+  # FIRST: snapshots/compiler.vfuel spreads the files over four compiling
+  # actors by position, and some distributions make it fail (a
+  # doesNotUnderstand in the Snapshotter, or a hang) -- with them last, every
+  # time (2026-11-18). The cause in the old compiler is not known.
+  nssources = Glob(os.path.join('newspeak', 'platform', 'PrimordialSoup',
+                                '*.ns')) + Glob(os.path.join('newspeak', '*.ns'))
   compilersnapshot = os.path.join('snapshots', 'compiler.vfuel')
   snapshots = []
   cmd = host_vm + ' ' + compilersnapshot + ' $SOURCES'
 
   helloout = os.path.join(outdir, 'HelloApp.vfuel')
   snapshots += [helloout]
-  cmd += ' RuntimeForPrimordialSoup HelloApp ' + helloout
+  cmd += ' Runtime HelloApp ' + helloout
 
   testout = os.path.join(outdir, 'TestRunner.vfuel')
   snapshots += [testout]
-  cmd += ' RuntimeWithMirrorsForPrimordialSoup TestRunner ' + testout
+  cmd += ' RuntimeWithMirrors TestRunner ' + testout
 
   benchmarkout = os.path.join(outdir, 'BenchmarkRunner.vfuel')
   snapshots += [benchmarkout]
-  cmd += ' RuntimeForPrimordialSoup BenchmarkRunner ' + benchmarkout
+  cmd += ' Runtime BenchmarkRunner ' + benchmarkout
 
   compilerout = os.path.join(outdir, 'CompilerApp.vfuel')
   snapshots += [compilerout]
-  cmd += ' RuntimeWithMirrorsForPrimordialSoup CompilerApp ' + compilerout
+  cmd += ' RuntimeWithMirrors CompilerApp ' + compilerout
 
   webcompilerout = os.path.join(outdir, 'WebCompiler.vfuel')
   snapshots += [webcompilerout]
-  cmd += ' RuntimeWithMirrorsForPrimordialSoup WebCompiler ' + webcompilerout
+  cmd += ' RuntimeWithMirrors WebCompiler ' + webcompilerout
 
   Command(target=snapshots, source=nssources, action=cmd)
   Requires(snapshots, host_vm)

@@ -1,13 +1,13 @@
 Newspeak3
-'Root'
-class RuntimeForPrimordialSoup packageRuntimeUsing: manifest = (
+'PrimordialSoup'
+class Runtime packageRuntimeUsing: manifest = (
 	|
 		private Kernel = manifest Kernel.
-		public InternalKernel = manifest KernelForPrimordialSoup.
-		private Collections = manifest CollectionsForPrimordialSoup.
-		private Actors = manifest ActorsForPrimordialSoup.
+		public InternalKernel = manifest InternalKernel.
+		private Collections = manifest Collections.
+		private Actors = manifest Actors.
 		private PrimordialFuel = manifest PrimordialFuel.
-		private JS = manifest JSForPrimordialSoup.
+		private JS = manifest Aliens.
 		private Host = manifest Host.
 	|
 ) (
