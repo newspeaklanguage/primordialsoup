@@ -36,6 +36,11 @@ class RuntimeWithMirrors packageRuntimeUsing: manifest = (
 			
 			halt
 		)
+		public supportsLiveSnapshots ^<Boolean> = (
+			(* Whether this platform saves a running image and restores it into a new host. Eurasia does; this platform does not, so its Aliens never die. *)
+			
+			^false
+		)
 	) : ()
 ) : (
 	public keepsSources ^<Boolean> = (

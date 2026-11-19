@@ -53,9 +53,14 @@ Expat mappings:
 			^rawPop
 		)
 		doesNotUnderstand: message = (
+			(* isDead, not understood by the host object, answers false: a host object is dead only after the image is restored into a new host (Platform>>supportsLiveSnapshots), which this platform does not do. A host object with an isDead of its own answers it. *)
+			
 			| jsSelector |
 			0 = message arguments size ifTrue: [
-					(message selector startsWith: 'isKindOf') ifTrue: [ ^false ]
+					(message selector startsWith: 'isKindOf') ifTrue: [ ^false ].
+					(#isDead = message selector and: [
+							isUndefined or: [ (includesKey: 'isDead') not ]
+						]) ifTrue: [ ^false ]
 				].
 			jsSelector:: asJSSelector: message selector.
 			^#new = jsSelector ifTrue: [ self newWithArguments: message arguments ]
