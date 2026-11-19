@@ -11,7 +11,9 @@ WebCompiler.vfuel \
     CodeMirror/lib/codemirror.js \
     CodeMirror/addon/display/autorefresh.js \
     RuntimeWithMirrorsForPrimordialSoup HopscotchWebIDE HopscotchWebIDE.vfuel \
-    RuntimeWithMirrorsForPrimordialSoup Ampleforth Ampleforth.vfuel \ *)
+    RuntimeWithMirrorsForPrimordialSoup Ampleforth Ampleforth.vfuel \
+
+Platform namespaces (PLATFORM_NAMESPACES_DESIGN_2026-11-18.md in the newspeak repository): a module loaded from a directory platform/P/ (for example platform/Eurasia/Collections.ns) belongs to platform P, and is named P/Collections. A runtime named P/Runtime runs on platform P: its manifest, and its application's, answer manifest Collections with P/Collections if there is one, else with Collections. manifest P answers platform P's own modules: manifest JavaScript Collections. A runtime named without a platform resolves names as before. *)
 	
 ) (
 	class Manifest forNamespace: ns <Map[Class | String | Alien]> = (
@@ -33,16 +35,24 @@ WebCompiler.vfuel \
 		|
 	) (
 		assembleRuntime: runtimeName <String> application: appName <String> to: snapshotPath <String> = (
-			| runtimeConfig <Class> appConfig <Class> runtime accessedResources <List> app bytes <ByteArray> |
+			(* A runtime named P/Name runs on platform P (see the class comment). *)
+			
+			| runtimeConfig <Class> appConfig <Class> runtime accessedResources <List> app bytes <ByteArray> platformName <String | Nil> slash <Integer> |
+			slash:: runtimeName indexOf: '/'.
+			platformName:: slash = 0 ifTrue: [ nil ]
+				ifFalse: [ runtimeName copyFrom: 1 to: slash - 1 ].
 			runtimeConfig:: (namespace at: runtimeName) at: 3.
 			appConfig:: (namespace at: appName) at: 3.
 			runtime:: runtimeConfig packageRuntimeUsing: (RecordingManifest namespace: namespace
-					accessedResources: List new).
+					accessedResources: List new
+					platform: platformName).
 			accessedResources:: List new.
 			appConfig packageUsing: (RecordingManifest namespace: namespace
-					accessedResources: accessedResources).
+					accessedResources: accessedResources
+					platform: platformName).
 			app:: Preloader resources: (Array withAll: accessedResources)
-				applicationConfiguration: appConfig.
+				applicationConfiguration: appConfig
+				platformName: platformName.
 			bytes:: Snapshotter new snapshotApp: app
 				withRuntime: runtime
 				keepSource: true.
@@ -60,7 +70,7 @@ WebCompiler.vfuel \
 			from:: (path lastIndexOf: '/') + 1.
 			(path endsWith: '.ns') ifTrue: [
 					| klass = compileFile: path. |
-					^{klass name. 'ns'. klass. }
+					^{(platformOf: path) , klass name. 'ns'. klass. }
 				].
 			(path endsWith: '.txt') ifTrue: [
 					| name = path copyFrom: from to: path size - 4. |
@@ -100,6 +110,21 @@ WebCompiler.vfuel \
 					index:: index + 3
 				]
 		)
+		platformOf: path <String> ^<String> = (
+			(* 'P/' for a module in a directory platform/P/, else ''. *)
+			
+			| start <Integer> stop <Integer> |
+			start:: (path startsWith: 'platform/') ifTrue: [ 1 ]
+				ifFalse: [
+					| i = path indexOf: '/platform/'. |
+					i = 0 ifTrue: [ ^'' ].
+					i + 1
+				].
+			start:: start + 'platform/' size.
+			stop:: path indexOf: '/' startingAt: start.
+			stop = 0 ifTrue: [ ^'' ].
+			^path copyFrom: start to: stop
+		)
 		readFileAsBytes: filename = (
 			(* :literalmessage: primitive: 130 *)
 			
@@ -114,13 +139,46 @@ WebCompiler.vfuel \
 			halt
 		)
 	) : ()
-	public class Preloader resources: r <Array[{String. String. String | Class}]> applicationConfiguration: a <Class> = (
+	class PlatformManifest namespace: ns <Map[String, Object]> platform: p <String | Nil> strict: b <Boolean> lookup: l <[:String | Object]> = (
+		(* A manifest for the given platform (nil for none): manifest X answers the platform's X, else (unless strict) X itself; manifest P, for a platform P with modules in the namespace, answers a strict manifest of P's modules. The lookup block answers what a name stands for, recording it if need be. *)
+		
+		|
+			namespace <Map[String, Object]> = ns.
+			platform <String | Nil> = p.
+			strict <Boolean> = b.
+			lookup <[:String | Object]> = l.
+		|
+	) (
+		doesNotUnderstand: message = (
+			| name <String> = message selector. |
+			nil = platform ifFalse: [
+					(namespace includesKey: platform , '/' , name) ifTrue: [
+							^lookup value: platform , '/' , name
+						].
+					strict ifTrue: [ ^namespace at: platform , '/' , name ]
+				].
+			(namespace includesKey: name) ifTrue: [ ^lookup value: name ].
+			(isPlatform: name) ifTrue: [
+					^PlatformManifest namespace: namespace
+						platform: name
+						strict: true
+						lookup: lookup
+				].
+			^namespace at: name
+		)
+		isPlatform: name <String> ^<Boolean> = (
+			| prefix <String> = name , '/'. |
+			^namespace keys anySatisfy: [:key <String> | key startsWith: prefix ]
+		)
+	) : ()
+	public class Preloader resources: r <Array[{String. String. String | Class}]> applicationConfiguration: a <Class> platformName: p <String | Nil> = (
 		(* Given a list of resources and an app, this class creates a wrapper for the app that converts the resources
-    into actual objects and feeds them to the app so it can be instantiated. *)
+    into actual objects and feeds them to the app so it can be instantiated. Its manifest resolves names for the app's platform (nil for none), as the class comment of WebCompiler says. *)
 		
 		|
 			resources <Array[{String. String. String | Class}]> = r.
 			applicationConfiguration <Class> = a.
+			platformName <String | Nil> = p.
 		|
 	) (
 		public main: platform args: args ^<Object> = (
@@ -134,7 +192,10 @@ WebCompiler.vfuel \
 					namespace at: name
 						put: (unpackResourceType: type payload: payload platform: platform)
 				].
-			manifest:: Manifest forNamespace: namespace.
+			manifest:: PlatformManifest namespace: namespace
+				platform: platformName
+				strict: false
+				lookup: [:name | namespace at: name ].
 			^(applicationConfiguration packageUsing: manifest) main: platform args: args
 		)
 		unpackResourceType: type <String> payload: payload <String | Class> platform: platform ^<Class | String | Alien> = (
@@ -177,21 +238,27 @@ WebCompiler.vfuel \
 			^Error signal: 'Unknown resource type: ' , type
 		)
 	) : ()
-	class RecordingManifest namespace: ns <Map[{String. String. String | Class}]> accessedResources: list <List[{String. String. String | Class}]> = (
+	class RecordingManifest namespace: ns <Map[{String. String. String | Class}]> accessedResources: list <List[{String. String. String | Class}]> platform: p <String | Nil> = (
 		(* This class is used to record the dependencies of an app, based on a provided map of names to resource triples. 
     Instantiating the app with an instance of this class as its manifest will record every resource accessed via the manifest, 
     in the provided list. The overall set of resources is given in the provided map. The app is of course, provided with the actual
-    value desired, which is the third element of the resource triple. *)
+    value desired, which is the third element of the resource triple. Names resolve for the given platform (nil for none), as the class comment of WebCompiler says. *)
 		
 		|
 			namespace <Map[{String. String. String | Class}]> = ns.
 			accessedResources <List[{String. String. String | Class}]> = list.
+			manifest = PlatformManifest namespace: ns
+				platform: p
+				strict: false
+				lookup: [:name |
+					| resource = namespace at: name. |
+					accessedResources add: resource.
+					resource at: 3
+				].
 		|
 	) (
 		doesNotUnderstand: message = (
-			| resource <Map[{String. String. String | Class}]> = namespace at: message selector. |
-			accessedResources add: resource.
-			^resource at: 3
+			^message sendTo: manifest
 		)
 	) : ()
 	public main: platform args: args = (
